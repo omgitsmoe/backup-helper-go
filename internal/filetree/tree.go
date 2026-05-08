@@ -36,7 +36,9 @@ func FromDir(root string) FileTree {
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("failure accessing path %q: %v\n", path, err)
-			return err
+			// return err
+			// ignore the error, continue iteration
+			return nil
 		}
 
 		// root also visited -> skip
@@ -84,22 +86,32 @@ func Print(tree *FileTree) {
 
 	sep := string(os.PathSeparator)
 
+	files := 0
+	pathsums := 0
 	for len(stack) > 0 {
 		curr := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
-		for _, child := range curr.Node.children {
+		child := curr.Node.firstChild
+		for child != nil {
 			stack = append(stack, Frame{
 				Node: child,
 				Path: filepath.Join(curr.Path, child.Name),
 			})
+
+			child = child.nextSibling
 		}
 
 		path := curr.Path
+		pathsums += len(path)
+		files += 1
+
 		if curr.Node.IsDir && !strings.HasSuffix(path, sep) {
 			path += sep
 		}
 
-		fmt.Println(path)
+		// fmt.Println(path)
 	}
+
+	fmt.Printf("Files: %v PathSums: %v", files, pathsums)
 }
