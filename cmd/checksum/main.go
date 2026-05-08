@@ -5,11 +5,8 @@ import (
 	"runtime"
 
 	"os"
-	"path/filepath"
-	"io/fs"
 
-    // "github.com/omgitsmoe/backup-helper-go/pkg/checksum"
-    "github.com/omgitsmoe/backup-helper-go/internal/filetree"
+    "github.com/omgitsmoe/backup-helper-go/pkg/checksum"
 )
 
 
@@ -24,138 +21,18 @@ func printMem(tag string) {
     fmt.Printf("  NumGC = %v\n\n", m.NumGC)
 }
 
-func use(tree *filetree.FileTree) {
-	println(tree.Root())
+type foo struct {
+	name string
+	id int
 }
 
-// File(name) with *Dir(storing the path) + dirpath->*Dir map
-// HeapAlloc = 179468 KB
-//
-// Files: 1733975 PathSums: 116735436
-func tree(root string) {
-	runtime.GC()
-	printMem("before")
-	tree, paths := filetree.FromDir(root)
-	runtime.GC()
-	printMem("after")
-
-	files := 0
-	pathsums := 0
-	for _, p := range paths {
-		// println(p)
-		pathsums += len(p.Path())
-		files += 1
-	}
-
-	fmt.Printf("Files: %v PathSums: %v", files, pathsums)
-	use(&tree)
+var fooToStr = map[foo]string {
+	{ name: "foo", id: 3 }: "bar",
 }
 
-// before:
-//   Alloc = 247 KB
-//   Sys   = 12118 KB
-//   HeapAlloc = 247 KB
-//   NumGC = 1
-
-// failure accessing path "/home/m/.cache/yay/chatterino2/pkg": open /home/m/.cache/yay/chatterino2/pkg: permission denied
-// after:
-//   Alloc = 17586 KB
-//   Sys   = 42942 KB
-//   HeapAlloc = 17586 KB
-//   NumGC = 11
-
-// Files: 158620 PathSums: 13431054
-func paths(root string) {
-	runtime.GC()
-	printMem("before")
-	paths := []string{}
-	filepath.WalkDir(root, func (path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			fmt.Printf("failure accessing path %q: %v\n", path, err)
-			// return err
-			// ignore the error, continue iteration
-			return nil
-		}
-
-		paths = append(paths, path)
-		return nil
-	})
-	runtime.GC()
-	printMem("after")
-	files := 0
-	pathsums := 0
-	for _, p := range paths {
-		// println(p)
-		pathsums += len(p)
-		files += 1
-	}
-
-	fmt.Printf("Files: %v PathSums: %v", files, pathsums)
-}
-
-type StrRef struct {
-	start uint32
-	end_exclusive uint32
-}
-
-func pathArena(root string) {
-	runtime.GC()
-	printMem("before")
-
-	arena := []byte{}
-	paths := []StrRef{}
-	filepath.WalkDir(root, func (path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			fmt.Printf("failure accessing path %q: %v\n", path, err)
-			// return err
-			// ignore the error, continue iteration
-			return nil
-		}
-
-		start := len(arena) + 1
-		arena = append(arena, path...)
-		end_exclusive := len(arena)
-		paths = append(paths, StrRef{ uint32(start), uint32(end_exclusive) })
-		return nil
-	})
-	runtime.GC()
-	printMem("after")
-	files := 0
-	pathsums := 0
-	for _, p := range paths {
-		path := string(arena[p.start:p.end_exclusive])
-		pathsums += len(path)
-		files += 1
-	}
-
-	fmt.Printf("Files: %v PathSums: %v", files, pathsums)
-}
-
-// tree (firstChild, nextSibling)
-// 217835 KB
-// Files: 1818124 PathSums: 123642288
-// paths
-// 166509 KB
-// Files: 1817998 PathSums: 123644980
-// pathArena
-// 167196 KB
-// Files: 1832434 PathSums: 124299417
-
-// TODO just storing full paths uses less mem vs storing tree nodes
-//      with just the name component + pointers + children
-//      paths (16KB~) vs nodes (24KB~)
-//      paths (17KB~) vs nodes (22KB~)
-//      	-> with firstChild and nextSibling instead of storing a children []*Node
 func main() {
 	args := os.Args[1:]
 	root := args[0]
-	if args[1] == "tree" {
-		tree(root)
-	}
-	if args[1] == "path" {
-		paths(root)
-	}
-	if args[1] == "pathArena" {
-		pathArena(root)
-	}
+	println("Using root", root)
+	checksum.Foo()
 }
