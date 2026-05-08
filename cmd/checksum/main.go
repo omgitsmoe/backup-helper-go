@@ -28,29 +28,27 @@ func use(tree *filetree.FileTree) {
 	println(tree.Root())
 }
 
-// before:
-//   Alloc = 247 KB
-//   Sys   = 12630 KB
-//   HeapAlloc = 247 KB
-//   NumGC = 1
-
-// failure accessing path "/home/m/.cache/yay/chatterino2/pkg": open /home/m/.cache/yay/chatterino2/pkg: permission denied
-// after:
-//   Alloc = 22094 KB
-//   Sys   = 43258 KB
-//   HeapAlloc = 22094 KB
-//   NumGC = 9
-
-// /home/m
-// Files: 158213 PathSums: 13388270
+// File(name) with *Dir(storing the path) + dirpath->*Dir map
+// HeapAlloc = 179468 KB
+//
+// Files: 1733975 PathSums: 116735436
 func tree(root string) {
 	runtime.GC()
 	printMem("before")
-	tree := filetree.FromDir(root)
+	tree, paths := filetree.FromDir(root)
 	runtime.GC()
 	printMem("after")
+
+	files := 0
+	pathsums := 0
+	for _, p := range paths {
+		// println(p)
+		pathsums += len(p.Path())
+		files += 1
+	}
+
+	fmt.Printf("Files: %v PathSums: %v", files, pathsums)
 	use(&tree)
-	filetree.Print(&tree)
 }
 
 // before:
