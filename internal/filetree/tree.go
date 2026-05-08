@@ -18,6 +18,10 @@ func NewTree(root string) FileTree {
 	}
 }
 
+func (t *FileTree) Root() string {
+	return t.root.Name
+}
+
 func FromDir(root string) FileTree {
 	root = filepath.Clean(root)
 	tree := NewTree(root)
@@ -28,6 +32,7 @@ func FromDir(root string) FileTree {
 		},
 	}
 
+	// TODO use ReadDir directly instead of abusing WalkDir
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("failure accessing path %q: %v\n", path, err)
@@ -60,13 +65,6 @@ func FromDir(root string) FileTree {
 
 		return nil
 	})
-
-	if len(dirstack) != 0 {
-		for _, f := range dirstack {
-			println(f.Path)
-		}
-		panic("leftover dirstack")
-	}
 
 	return tree
 }
