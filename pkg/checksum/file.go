@@ -9,23 +9,23 @@ import (
 	_ "crypto/md5"
 	_ "crypto/sha1"
 	_ "crypto/sha256"
-	_ "crypto/sha512"
 	_ "crypto/sha3"
+	_ "crypto/sha512"
 )
 
 type File struct {
 	path string
 
 	mtime time.Time
-	size int64
+	size  int64
 
 	hashType Hash
-	hash []byte
+	hash     []byte
 }
 
 func NewFile(path string, hash Hash) File {
 	return File{
-		path: path,
+		path:     path,
 		hashType: hash,
 	}
 }
@@ -37,9 +37,9 @@ func FileFromDisk(path string) (File, error) {
 	}
 
 	return File{
-		path: path,
+		path:  path,
 		mtime: info.ModTime(),
-		size: info.Size(),
+		size:  info.Size(),
 	}, nil
 }
 

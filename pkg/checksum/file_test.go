@@ -3,11 +3,11 @@ package checksum
 import (
 	"crypto"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
-	"testing"
-	"errors"
 	"reflect"
+	"testing"
 	"time"
 )
 
@@ -28,7 +28,6 @@ func TestHashFile(t *testing.T) {
 		{Hash{crypto.MD5}, "5eb63bbbe01eeed093cb22bb8f5acdc3"},
 		{Hash{crypto.SHA512}, "309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f"},
 	}
-
 
 	for _, tt := range tests {
 		t.Run(tt.hash.String(), func(t *testing.T) {
