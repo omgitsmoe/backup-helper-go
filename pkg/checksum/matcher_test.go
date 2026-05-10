@@ -4,11 +4,11 @@ import "testing"
 
 func TestMatcherInvalidPattern(t *testing.T) {
 	invalidPatterns := []string{
-		"[abc",       // unclosed character class
-		"foo[",       // unclosed
-		"foo[bar",    // unclosed
-		"foo[]bar",   // empty character class
-		"foo[!]",     // invalid negation
+		"[abc",     // unclosed character class
+		"foo[",     // unclosed
+		"foo[bar",  // unclosed
+		"foo[]bar", // empty character class
+		"foo[!]",   // invalid negation
 	}
 
 	for _, invalid := range invalidPatterns {
@@ -136,6 +136,13 @@ func TestMatcherMatch(t *testing.T) {
 			expect: true,
 		},
 		{
+			name:   "allowed and not blocked - deep",
+			allow:  []string{"**/*.txt"},
+			block:  nil,
+			path:   "foo/bar/file.txt",
+			expect: true,
+		},
+		{
 			name:   "allowed but blocked -> blocked wins",
 			allow:  []string{"*.txt"},
 			block:  []string{"file.txt"},
@@ -147,6 +154,20 @@ func TestMatcherMatch(t *testing.T) {
 			allow:  []string{"*.txt"},
 			block:  nil,
 			path:   "file.go",
+			expect: false,
+		},
+		{
+			name:   "not allowed deep",
+			allow:  []string{"*.txt"},
+			block:  nil,
+			path:   "baz/xer/omg.docx",
+			expect: false,
+		},
+		{
+			name:   "not allowed abs deep",
+			allow:  []string{"*.txt"},
+			block:  nil,
+			path:   "/tmp/TestFilteredWalk3090177219/001/baz/xer/omg.docx",
 			expect: false,
 		},
 		{
