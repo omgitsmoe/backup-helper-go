@@ -1,6 +1,9 @@
 package checksum
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestMatcherInvalidPattern(t *testing.T) {
 	invalidPatterns := []string{
@@ -27,6 +30,52 @@ func TestMatcherInvalidPattern(t *testing.T) {
 
 			assertErr(t, err)
 		})
+	}
+}
+
+func TestMatcherPatternNormalization(t *testing.T) {
+	allowPattern := "foo/bar/**/*.txt"
+	blockPattern := "baz/qux/*.log"
+
+	m, err := NewMatcher(
+		WithAllow(allowPattern),
+		WithBlock(blockPattern),
+	)
+	assertNoErr(t, err)
+
+	if runtime.GOOS == "windows" {
+		expectedAllowPattern := "foo\\bar\\**\\*.txt"
+		expectedBlockPattern := "baz\\qux\\*.log"
+
+		assertEqual(t, len(m.allow), 1)
+		assertEqual(
+			t,
+			m.allow[0],
+			expectedAllowPattern,
+		)
+
+		assertEqual(t, len(m.block), 1)
+		assertEqual(
+			t,
+			m.block[0],
+			expectedBlockPattern,
+		)
+	} else {
+		expectedAllowPattern := allowPattern
+		expectedBlockPattern := blockPattern
+		assertEqual(t, len(m.allow), 1)
+		assertEqual(
+			t,
+			expectedAllowPattern,
+			m.allow[0],
+		)
+
+		assertEqual(t, len(m.block), 1)
+		assertEqual(
+			t,
+			expectedBlockPattern,
+			m.block[0],
+		)
 	}
 }
 

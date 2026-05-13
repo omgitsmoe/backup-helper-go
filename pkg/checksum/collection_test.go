@@ -30,7 +30,7 @@ func TestPathMissingRootOrName(t *testing.T) {
 }
 
 func TestPath(t *testing.T) {
-	expected := "foo/bar/baz.txt"
+	expected := filepath.Join("foo", "bar", "baz.txt")
 	c := NewHashCollection(expected)
 
 	actual, err := c.Path()

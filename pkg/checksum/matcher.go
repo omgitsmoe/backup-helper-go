@@ -2,6 +2,7 @@ package checksum
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/bmatcuk/doublestar/v4"
 )
@@ -14,6 +15,8 @@ type Matcher struct {
 type MatcherOption func(*Matcher) error
 
 func WithAllow(pattern string) MatcherOption {
+	// NOTE: convert to native separators so we also support '/' on windows
+	pattern = filepath.FromSlash(pattern)
 	return func(m *Matcher) error {
 		if !doublestar.ValidatePathPattern(pattern) {
 			return fmt.Errorf("invalid allow pattern: %q", pattern)
@@ -24,6 +27,8 @@ func WithAllow(pattern string) MatcherOption {
 }
 
 func WithBlock(pattern string) MatcherOption {
+	// NOTE: convert to native separators so we also support '/' on windows
+	pattern = filepath.FromSlash(pattern)
 	return func(m *Matcher) error {
 		if !doublestar.ValidatePathPattern(pattern) {
 			return fmt.Errorf("invalid block pattern: %q", pattern)
