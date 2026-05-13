@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"time"
+	"errors"
 	// NOTE: these need to be imported such that they become hash.Available()
 	_ "crypto/md5"
 	_ "crypto/sha1"
@@ -12,6 +13,20 @@ import (
 	_ "crypto/sha3"
 	_ "crypto/sha512"
 )
+
+var ErrHashNotAvailable = errors.New("hash not available")
+
+type HashNotAvailableError struct {
+	Hash Hash
+}
+
+func (e *HashNotAvailableError) Error() string {
+	return fmt.Sprintf("hash not available: %s", e.Hash)
+}
+
+func (e *HashNotAvailableError) Is(target error) bool {
+	return target == ErrHashNotAvailable
+}
 
 type File struct {
 	path string
@@ -69,7 +84,7 @@ func (f *File) UpdateHash() error {
 func HashFile(path string, hash Hash) ([]byte, error) {
 	h := hash.Hash
 	if !h.Available() {
-		return nil, fmt.Errorf("hash type '%s' not available!", h.String())
+		return nil, &HashNotAvailableError{hash}
 	}
 
 	hasher := h.New()

@@ -9,28 +9,28 @@ type Hash struct {
 	crypto.Hash
 }
 
-func (h Hash) ToIdentifier() string {
+func (h Hash) ToIdentifier() (string, error) {
 	switch h.Hash {
 	case crypto.MD4:
-		return "md4"
+		return "md4", nil
 	case crypto.MD5:
-		return "md5"
+		return "md5", nil
 	case crypto.SHA1:
-		return "sha1"
+		return "sha1", nil
 	case crypto.SHA256:
-		return "sha256"
+		return "sha256", nil
 	case crypto.SHA384:
-		return "sha384"
+		return "sha384", nil
 	case crypto.SHA3_224:
-		return "sha3_224"
+		return "sha3_224", nil
 	case crypto.SHA3_256:
-		return "sha3_256"
+		return "sha3_256", nil
 	case crypto.SHA3_384:
-		return "sha3_384"
+		return "sha3_384", nil
 	case crypto.SHA3_512:
-		return "sha3_512"
+		return "sha3_512", nil
 	case crypto.SHA512:
-		return "sha512"
+		return "sha512", nil
 
 	case crypto.SHA224:
 		fallthrough
@@ -49,7 +49,7 @@ func (h Hash) ToIdentifier() string {
 	case crypto.MD5SHA1:
 		fallthrough
 	case crypto.RIPEMD160:
-		return "unsupported hash " + h.Hash.String()
+		return "", fmt.Errorf("unsupported hash %v", h.Hash.String())
 	}
 
 	panic(fmt.Sprintf("unexpected crypto.Hash: %#v", h.Hash))
