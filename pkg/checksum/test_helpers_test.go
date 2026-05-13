@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func assertNoErr(t *testing.T, err error) {
@@ -24,6 +25,22 @@ func assertEqual[T comparable](t *testing.T, got, want T) {
 	t.Helper()
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func assertTimeApproxEqual(t *testing.T, got, want time.Time, tolerance time.Duration) {
+	t.Helper()
+
+	diff := got.Sub(want)
+	if diff < 0 {
+		diff = -diff
+	}
+
+	if diff > tolerance {
+		t.Fatalf(
+			"time mismatch: got %v, want %v (diff %v > %v)",
+			got, want, diff, tolerance,
+		)
 	}
 }
 
