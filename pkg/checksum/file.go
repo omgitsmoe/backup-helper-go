@@ -1,11 +1,13 @@
 package checksum
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
-	"errors"
+
 	// NOTE: these need to be imported such that they become hash.Available()
 	_ "crypto/md5"
 	_ "crypto/sha1"
@@ -38,10 +40,11 @@ type File struct {
 	hash     []byte
 }
 
-func NewFile(path string, hash Hash) File {
+func NewFile(path string, hashType Hash) File {
+	path = filepath.Clean(path)
 	return File{
 		path:     path,
-		hashType: hash,
+		hashType: hashType,
 	}
 }
 

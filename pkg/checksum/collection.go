@@ -5,26 +5,33 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"errors"
 )
+
+var ErrFileExists = errors.New("file already exists")
 
 type HashCollection struct {
 	root       string
 	name       string
 	mtime      time.Time
-	pathToFile map[string]File
+	pathToFile map[string]*File
 }
 
 func NewHashCollection(path string) HashCollection {
-	root, filename := filepath.Split(path)
+	clean := filepath.Clean(path)
+	// NOTE: these return '.' on empty path
+	// TODO only allow absolute paths?
+	root := filepath.Dir(clean)
+	filename := filepath.Base(clean)
 	return HashCollection{
 		root:       root,
 		name:       filename,
-		pathToFile: make(map[string]File, 0),
+		pathToFile: make(map[string]*File, 0),
 	}
 }
 
 func (c *HashCollection) Path() (string, error) {
-	if len(c.root) == 0 || len(c.name) == 0 {
+	if len(c.root) == 0 || len(c.name) == 0 || c.root == "." || c.name == "." {
 		return "", fmt.Errorf("collection must have a root and name set")
 	}
 
@@ -47,6 +54,46 @@ func (c *HashCollection) UpdateMtime() error {
 	return nil
 }
 
-func (c *HashCollection) Mtime() time.Time {
+func (c *HashCollection) Root() string {
+	return c.root
+}
+
+func (c *HashCollection) Name() string {
+	return c.name
+}
+
+func (c *HashCollection) SetName(name string) {
+	c.name = name
+}
+
+func (c *HashCollection) MTime() time.Time {
 	return c.mtime
+}
+
+func (c *HashCollection) Get(path string) (*File, bool) {
+	path = filepath.Clean(path)
+	f, ok := c.pathToFile[path]
+	return f, ok
+}
+
+func (c *HashCollection) Set(path string, file *File) {
+	path = filepath.Clean(path)
+	c.pathToFile[path] = file
+}
+
+func (c *HashCollection) Insert(file *File) error {
+	if _, exists := c.pathToFile[file.path]; exists {
+		return fmt.Errorf("%w: '%v'", ErrFileExists, file.path)
+	}
+
+	c.pathToFile[file.path] = file
+	return nil
+}
+
+func (c *HashCollection) ForEach(fn func (path string, file *File) bool) {
+	for p, f := range c.pathToFile {
+		if !fn(p, f) {
+			return
+		}
+	}
 }

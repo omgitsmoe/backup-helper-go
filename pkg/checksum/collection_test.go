@@ -75,7 +75,7 @@ func TestUpdateMtime(t *testing.T) {
 
 	assertNoErr(t, err)
 
-	if time.Since(c.Mtime()) > time.Second*3 {
+	if time.Since(c.MTime()) > time.Second*3 {
 		t.Fatalf("mtime seems too old: %v", c.mtime)
 	}
 }

@@ -169,3 +169,15 @@ func TestUpdateMetadataNotFound(t *testing.T) {
 		t.Fatalf("expected os.ErrNotExist error, got %v", err)
 	}
 }
+
+func TestHashFileNewCleansPath(t *testing.T) {
+	tests := []struct { path string; expectedPath string } {
+		{ path: "foo/.//./bar", expectedPath: filepath.Join("foo", "bar") },
+		{ path: "foo///../bar", expectedPath: "bar" },
+	}
+
+	for _, tt := range tests {
+		f := NewFile(tt.path, Hash{crypto.MD5})
+		assertEqual(t, f.path, tt.expectedPath)
+	}
+}
