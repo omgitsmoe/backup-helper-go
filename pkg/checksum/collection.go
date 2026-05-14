@@ -97,3 +97,7 @@ func (c *HashCollection) ForEach(fn func (path string, file *File) bool) {
 		}
 	}
 }
+
+func (c *HashCollection) Clear() {
+	clear(c.pathToFile)
+}

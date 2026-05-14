@@ -466,3 +466,68 @@ func TestParseHash(t *testing.T) {
 		})
 	}
 }
+
+func TestParseHeader(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expected      int
+		wantErr       bool
+	}{
+		{
+			name:          "missing",
+			input:         "",
+			expected:      0,
+			wantErr:       false,
+		},
+		{
+			name:          "only whitespace",
+			input:         "     \t  ",
+			expected:      0,
+			wantErr:       false,
+		},
+		{
+			name:          "version 1",
+			input:         "# version 1",
+			expected:      1,
+			wantErr:       false,
+		},
+		{
+			name:          "version 1 with extra whitespace",
+			input:         "# version    \t 1",
+			expected:      1,
+			wantErr:       false,
+		},
+		{
+			name:          "version invalid",
+			input:         "# version foo",
+			expected:      0,
+			wantErr:       true,
+		},
+		{
+			name:          "comment",
+			input:         "# foo bar",
+			expected:      0,
+			wantErr:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseHeader(tt.input)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			assertEqual(t, got, tt.expected)
+		})
+	}
+}
