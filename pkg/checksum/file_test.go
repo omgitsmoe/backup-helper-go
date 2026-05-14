@@ -58,7 +58,7 @@ func TestHashFileDoesNotExist(t *testing.T) {
 }
 
 func TestHashFileHashNotAvailable(t *testing.T) {
-	// WARN: assumes crypt/md4 is not loaded/imported in this package!!!
+	// WARN: assumes crypto/md4 is not loaded/imported in this package!!!
 	unimportedHash := Hash{crypto.MD4}
 	h, err := HashFile("foobarbazxer42069", unimportedHash)
 

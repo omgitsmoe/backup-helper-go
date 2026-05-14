@@ -33,14 +33,14 @@ func NewHashCollection(path string) *HashCollection {
 func NewHashCollectionFromDisk(path string) (*HashCollection, error) {
 	st, err := os.Stat(path)
 	if err != nil {
-		return &HashCollection{}, fmt.Errorf("failed to stat file at '%q': %w", path, err)
+		return nil, fmt.Errorf("failed to stat file at '%q': %w", path, err)
 	}
 
 	mtime := st.ModTime()
 
 	f, err := os.Open(path)
 	if err != nil {
-		return &HashCollection{}, fmt.Errorf("failed to open file at '%q': %w", path, err)
+		return nil, fmt.Errorf("failed to open file at '%q': %w", path, err)
 	}
 
 	ext := filepath.Ext(path)
@@ -48,19 +48,19 @@ func NewHashCollectionFromDisk(path string) (*HashCollection, error) {
 	if ext == ".cshd" {
 		hc, err = Parse(path, f)
 		if err != nil {
-			return &HashCollection{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to parse single-hash collection at '%q': %w", path, err)
 		}
 	} else {
 		hashType, err := extensionToHashType(ext)
 		if err != nil {
-			return &HashCollection{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to determine hash type from extension: %w", err)
 		}
 
 		hc, err = ParseSingle(path, hashType, f)
 		if err != nil {
-			return &HashCollection{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to parse single-hash collection at '%q': %w", path, err)
 		}
 	}

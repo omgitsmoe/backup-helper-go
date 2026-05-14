@@ -184,6 +184,7 @@ func TestFlushNoRelativePathPossible(t *testing.T) {
 	serializeRelFunc = func(_ string, _ string) (string, error) {
 		return "", errors.New("can't make path relative")
 	}
+	defer func() { serializeRelFunc = filepath.Rel }()
 
 	hc := setupHashCollection(".")
 	var sb strings.Builder

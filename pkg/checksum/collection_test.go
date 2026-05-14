@@ -107,28 +107,28 @@ func TestNewHashCollectionFromDisk(t *testing.T) {
 			name: "file not found",
 			path: filepath.Join(root, "does", "not", "exist.cshd"),
 			fileContents: nil,
-			expected: &HashCollection{},
+			expected: nil,
 			wantErr: true,
 		},
 		{
 			name: "unexpected extension",
 			path: filepath.Join(root, "does", "not", "exist.foo"),
 			fileContents: []byte("foo"),
-			expected: &HashCollection{},
+			expected: nil,
 			wantErr: true,
 		},
 		{
 			name: "invalid cshd file",
 			path: filepath.Join(root, "file.cshd"),
 			fileContents: []byte("foo"),
-			expected: &HashCollection{},
+			expected: nil,
 			wantErr: true,
 		},
 		{
 			name: "invalid single-hash file",
 			path: filepath.Join(root, "file.md5"),
 			fileContents: []byte("foo"),
-			expected: &HashCollection{},
+			expected: nil,
 			wantErr: true,
 		},
 		{
@@ -180,11 +180,13 @@ func TestNewHashCollectionFromDisk(t *testing.T) {
 				if err := os.WriteFile(tt.path, tt.fileContents, 0644); err != nil {
 					t.Fatalf("failed to write test hash file: %v", err)
 				}
-				s, err := os.Stat(tt.path)
-				if err != nil {
-					t.Fatalf("failed to stat hash file: %v", err)
+				if tt.expected != nil {
+					s, err := os.Stat(tt.path)
+					if err != nil {
+						t.Fatalf("failed to stat hash file: %v", err)
+					}
+					tt.expected.mtime = s.ModTime()
 				}
-				tt.expected.mtime = s.ModTime()
 			}
 
 			hc, err := NewHashCollectionFromDisk(tt.path)

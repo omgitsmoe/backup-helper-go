@@ -91,6 +91,15 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 
 func assertHashCollectionsEqual(t *testing.T, got *HashCollection, want *HashCollection) {
 	t.Helper()
+
+	if want == nil {
+		if got != nil {
+			t.Fatalf("wanted a nil HashCollection, got %v", got)
+		}
+	}
+	if got == nil {
+		t.Fatalf("wanted a non-nil HashCollection, got %v", got)
+	}
 	assertEqual(t, got.name, want.name)
 	assertEqual(t, got.root, want.root)
 	assertTimeApproxEqual(t, got.mtime, want.mtime, time.Microsecond)
