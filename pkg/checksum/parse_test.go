@@ -135,23 +135,7 @@ func TestParse(t *testing.T) {
 				assertNoErr(t, err)
 			}
 
-			assertEqual(t, hc.name, tt.expectedHashCollection.name)
-			assertEqual(t, hc.root, tt.expectedHashCollection.root)
-			assertTimeApproxEqual(t, hc.mtime, tt.expectedHashCollection.mtime, time.Microsecond)
-			assertEqual(t, len(hc.pathToFile), len(tt.expectedHashCollection.pathToFile))
-
-			for p, expectedFile := range tt.expectedHashCollection.pathToFile {
-				actualFile, found := hc.pathToFile[p]
-				if !found {
-					t.Fatalf("expected file at '%q' was not found", p)
-				}
-
-				assertEqual(t, actualFile.path, expectedFile.path)
-				assertEqual(t, actualFile.size, expectedFile.size)
-				assertTimeApproxEqual(t, actualFile.mtime, expectedFile.mtime, time.Microsecond)
-				assertEqual(t, actualFile.hashType, expectedFile.hashType)
-				assertSliceEqual(t, actualFile.hash, expectedFile.hash)
-			}
+			assertHashCollectionsEqual(t, hc, &tt.expectedHashCollection)
 		})
 	}
 }

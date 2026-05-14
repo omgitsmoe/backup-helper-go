@@ -88,3 +88,24 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 		}
 	}
 }
+
+func assertHashCollectionsEqual(t *testing.T, got *HashCollection, want *HashCollection) {
+	t.Helper()
+	assertEqual(t, got.name, want.name)
+	assertEqual(t, got.root, want.root)
+	assertTimeApproxEqual(t, got.mtime, want.mtime, time.Microsecond)
+	assertEqual(t, len(got.pathToFile), len(want.pathToFile))
+
+	for p, expectedFile := range want.pathToFile {
+		actualFile, found := got.pathToFile[p]
+		if !found {
+			t.Fatalf("expected file at '%q' was not found", p)
+		}
+
+		assertEqual(t, actualFile.path, expectedFile.path)
+		assertEqual(t, actualFile.size, expectedFile.size)
+		assertTimeApproxEqual(t, actualFile.mtime, expectedFile.mtime, time.Microsecond)
+		assertEqual(t, actualFile.hashType, expectedFile.hashType)
+		assertSliceEqual(t, actualFile.hash, expectedFile.hash)
+	}
+}

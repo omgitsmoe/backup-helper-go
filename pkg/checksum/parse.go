@@ -16,7 +16,7 @@ import (
 var errSkipCommentOrEmpty = errors.New("skip comment or empty line")
 var ErrMissingField = errors.New("missing or empty field")
 
-func Parse(collectionPath string, r io.Reader) (HashCollection, error) {
+func Parse(collectionPath string, r io.Reader) (*HashCollection, error) {
 	scanner := bufio.NewScanner(r)
 
 	seenHeader := false
@@ -29,7 +29,7 @@ func Parse(collectionPath string, r io.Reader) (HashCollection, error) {
 			var err error
 			version, err = parseHeader(line)
 			if err != nil {
-				return HashCollection{}, err
+				return &HashCollection{}, err
 			}
 
 			seenHeader = true
@@ -43,12 +43,12 @@ func Parse(collectionPath string, r io.Reader) (HashCollection, error) {
 			continue
 		}
 		if err != nil {
-			return HashCollection{}, err
+			return &HashCollection{}, err
 		}
 
 		err = hc.Insert(&file)
 		if err != nil {
-			return HashCollection{}, fmt.Errorf("failed to insert file: %w", err)
+			return &HashCollection{}, fmt.Errorf("failed to insert file: %w", err)
 		}
 	}
 
