@@ -32,7 +32,7 @@ func TestHashFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.hash.String(), func(t *testing.T) {
-			sum, err := HashFile(path, tt.hash)
+			sum, err := HashFile(path, tt.hash, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -46,7 +46,7 @@ func TestHashFile(t *testing.T) {
 }
 
 func TestHashFileDoesNotExist(t *testing.T) {
-	h, err := HashFile("foobarbazxer42069", Hash{crypto.SHA512})
+	h, err := HashFile("foobarbazxer42069", Hash{crypto.SHA512}, nil)
 
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected os.ErrNotExist, got %v", err)
@@ -60,9 +60,9 @@ func TestHashFileDoesNotExist(t *testing.T) {
 func TestHashFileHashNotAvailable(t *testing.T) {
 	// WARN: assumes crypto/md4 is not loaded/imported in this package!!!
 	unimportedHash := Hash{crypto.MD4}
-	h, err := HashFile("foobarbazxer42069", unimportedHash)
+	h, err := HashFile("foobarbazxer42069", unimportedHash, nil)
 
-	if !errors.Is(err, ErrHashNotAvailable) {
+	if !errors.Is(err, ErrHashTypeNotAvailable) {
 		t.Fatalf("expected ErrHashNotAvailable got %v", err)
 	}
 
@@ -104,8 +104,21 @@ func TestUpdateHash(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.hash.String(), func(t *testing.T) {
+			progressExpected := []struct { done, total uint64 } {
+				{ 11, 11 },
+				{ 11, 11 },
+			}
+			progressReceived := []struct { done, total uint64 } {
+			}
+			progress := func(done, total uint64) {
+				progressReceived = append(
+					progressReceived,
+					struct { done, total uint64 }{
+						done: done, total: total, })
+			}
+
 			file := NewFile(path, tt.hash)
-			err := file.UpdateHash()
+			err := file.UpdateHash(progress)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -114,6 +127,8 @@ func TestUpdateHash(t *testing.T) {
 			if got != tt.want {
 				t.Fatalf("hash mismatch\n got %s\nwant %s", got, tt.want)
 			}
+
+			assertSliceEqual(t, progressReceived, progressExpected)
 		})
 	}
 }
@@ -123,7 +138,7 @@ func TestUpdateHashFileNotFound(t *testing.T) {
 	hash := []byte{123, 55, 33}
 	f.hash = hash
 
-	err := f.UpdateHash()
+	err := f.UpdateHash(nil)
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected os.ErrNotExist, got %v", err)
 	}
@@ -180,4 +195,212 @@ func TestHashFileNewCleansPath(t *testing.T) {
 		f := NewFile(tt.path, Hash{crypto.MD5})
 		assertEqual(t, f.path, tt.expectedPath)
 	}
+}
+
+func TestVerify(t *testing.T) {
+	tests := []struct {
+		name string
+		input *File
+		fileContents []byte
+		fileMtime time.Time
+		expected VerifyResult
+		wantErr bool
+		errorKind error
+	}{
+		{
+			name: "err: missing hash",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Time{},
+				size:     0,
+				hashType: Hash{},
+				hash:     []byte{},
+			},
+			fileContents: nil,
+			fileMtime: time.Time{},
+			expected: 0,
+			wantErr: true,
+			errorKind: ErrMissingHash,
+		},
+		{
+			name: "mismatch: missing file",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Time{},
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte("deadbeef"),
+			},
+			fileContents: nil,
+			fileMtime: time.Time{},
+			expected: VerifyFileMissing,
+			wantErr: true,
+			errorKind: os.ErrNotExist,
+		},
+		{
+			name: "mismatch: size",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Time{},
+				size:     5,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte("deadbeef"),
+			},
+			fileContents: []byte("123456"),
+			fileMtime: time.Time{},
+			expected: VerifyMismatchSize,
+			wantErr: false,
+			errorKind: nil,
+		},
+		{
+			name: "mismatch",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Time{},
+				size:     5,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte("deadbeef"),
+			},
+			fileContents: []byte("12345"),
+			fileMtime: time.Time{},
+			expected: VerifyMismatch,
+			wantErr: false,
+			errorKind: nil,
+		},
+		{
+			name: "mismatch: corrupted",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Unix(1337, 1_330_000),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte("deadbeef"),
+			},
+			fileContents: []byte("corrupted"),
+			fileMtime: time.Unix(1337, 1_330_000),
+			expected: VerifyMismatchCorrupted,
+			wantErr: false,
+			errorKind: nil,
+		},
+		{
+			name: "mismatch: outdated",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Unix(1337, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte("deadbeef"),
+			},
+			fileContents: []byte("corrupted"),
+			fileMtime: time.Unix(1337, 1_330_000),
+			expected: VerifyMismatchOutdatedHash,
+			wantErr: false,
+			errorKind: nil,
+		},
+		{
+			name: "ok",
+			input: &File{
+				path:     filepath.Join("foo", "bar", "file.txt"),
+				mtime:    time.Time{},
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash:     []byte{
+					0x5e, 0xb6, 0x3b, 0xbb, 0xe0, 0x1e, 0xee, 0xd0,
+					0x93, 0xcb, 0x22, 0xbb, 0x8f, 0x5a, 0xcd, 0xc3,
+				},
+			},
+			fileContents: []byte("hello world"),
+			fileMtime: time.Time{},
+			expected: VerifyOK,
+			wantErr: false,
+			errorKind: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, tt.input.path)
+
+			if tt.fileContents != nil {
+				if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+					t.Fatalf("failed to create parent dirs for hash file: %v", err)
+				}
+				if err := os.WriteFile(path, tt.fileContents, 0644); err != nil {
+					t.Fatalf("failed to write test hash file: %v", err)
+				}
+
+				if !tt.fileMtime.IsZero() {
+					err := os.Chtimes(path, tt.fileMtime, tt.fileMtime)
+					if err != nil {
+						t.Fatalf("failed to write mtime of hash file: %v", err)
+					}
+				}
+
+				// patch actual path
+				tt.input.path = path
+			}
+
+			result, err := tt.input.Verify(nil)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+
+				if tt.errorKind != nil {
+					if !errors.Is(err, tt.errorKind) {
+						t.Fatalf(
+							"expected error of kind '%v', got '%v'",
+							tt.errorKind, err,
+						)
+					}
+				}
+				return
+			} else {
+				assertNoErr(t, err)
+			}
+
+			assertEqual(t, result, tt.expected)
+		})
+	}
+}
+
+func TestVerifyReportsProgress(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "test.txt")
+
+	if err := os.WriteFile(path, []byte("hello world"), 0644); err != nil {
+		t.Fatalf("failed to write test hash file: %v", err)
+	}
+
+	progressExpected := []struct { done, total uint64 } {
+		{ 11, 11 },
+		{ 11, 11 },
+	}
+	progressReceived := []struct { done, total uint64 } {
+	}
+	progress := func(done, total uint64) {
+		progressReceived = append(
+			progressReceived,
+			struct { done, total uint64 }{
+				done: done, total: total, })
+	}
+
+	file :=  &File{
+		path:     path,
+		mtime:    time.Time{},
+		size:     0,
+		hashType: Hash{crypto.MD5},
+		hash:     []byte{
+			0x5e, 0xb6, 0x3b, 0xbb, 0xe0, 0x1e, 0xee, 0xd0,
+			0x93, 0xcb, 0x22, 0xbb, 0x8f, 0x5a, 0xcd, 0xc3,
+		},
+	}
+
+	result, err := file.Verify(progress)
+
+	assertNoErr(t, err)
+	assertEqual(t, result, VerifyOK)
+	assertSliceEqual(t, progressReceived, progressExpected)
 }

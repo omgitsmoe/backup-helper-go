@@ -1,6 +1,7 @@
 package checksum
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,19 @@ import (
 	_ "crypto/sha512"
 )
 
-var ErrHashNotAvailable = errors.New("hash not available")
+type VerifyResult int
+
+const (
+	VerifyOK VerifyResult = iota
+	VerifyFileMissing
+	VerifyMismatch
+	VerifyMismatchSize
+	VerifyMismatchCorrupted
+	VerifyMismatchOutdatedHash
+)
+
+var ErrHashTypeNotAvailable = errors.New("hash type not available")
+var ErrMissingHash = errors.New("missing hash")
 
 type HashNotAvailableError struct {
 	Hash Hash
@@ -27,7 +40,7 @@ func (e *HashNotAvailableError) Error() string {
 }
 
 func (e *HashNotAvailableError) Is(target error) bool {
-	return target == ErrHashNotAvailable
+	return target == ErrHashTypeNotAvailable
 }
 
 type File struct {
@@ -73,8 +86,8 @@ func (f *File) UpdateMetadata() error {
 	return nil
 }
 
-func (f *File) UpdateHash() error {
-	hash, err := HashFile(f.path, f.hashType)
+func (f *File) UpdateHash(progress func(done, total uint64)) error {
+	hash, err := HashFile(f.path, f.hashType, progress)
 	if err != nil {
 		return err
 	}
@@ -84,7 +97,25 @@ func (f *File) UpdateHash() error {
 	return nil
 }
 
-func HashFile(path string, hash Hash) ([]byte, error) {
+type progressReader struct {
+	r        io.Reader
+	read     uint64
+	total    uint64
+	progress func(done, total uint64)
+}
+
+func (p *progressReader) Read(buf []byte) (int, error) {
+	n, err := p.r.Read(buf)
+	p.read += uint64(n)
+
+	if p.progress != nil {
+		p.progress(p.read, p.total)
+	}
+
+	return n, err
+}
+
+func HashFile(path string, hash Hash, progress func(done, total uint64)) ([]byte, error) {
 	h := hash.Hash
 	if !h.Available() {
 		return nil, &HashNotAvailableError{hash}
@@ -98,10 +129,66 @@ func HashFile(path string, hash Hash) ([]byte, error) {
 	}
 	defer f.Close()
 
-	_, err = io.Copy(hasher, f)
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	var r io.Reader = f
+
+	// wrap the reader to enable progress reporting
+	if progress != nil {
+		r = &progressReader{
+			r:        f,
+			total:    uint64(info.Size()),
+			progress: progress,
+		}
+	}
+
+	_, err = io.Copy(hasher, r)
 	if err != nil {
 		return nil, err
 	}
 
 	return hasher.Sum(nil), nil
+}
+
+func (f *File) Verify(progress func(done, total uint64)) (VerifyResult, error) {
+	if len(f.hash) == 0 {
+		return 0, ErrMissingHash
+	}
+
+	path := f.path
+
+	meta, err := os.Stat(path)
+	if err != nil {
+		return VerifyFileMissing, err
+	}
+
+	if f.size != 0 {
+		if meta.Size() != f.size {
+			return VerifyMismatchSize, nil
+		}
+	}
+
+	hashOnDisk, err := HashFile(path, f.hashType, progress)
+	if err != nil {
+		return 0, err
+	}
+
+	if bytes.Equal(hashOnDisk, f.hash) {
+		return VerifyOK, nil
+	}
+
+	if f.mtime.IsZero() {
+		return VerifyMismatch, nil
+	}
+
+	mtimeOnDisk := meta.ModTime()
+
+	if mtimeOnDisk.Equal(f.mtime) {
+		return VerifyMismatchCorrupted, nil
+	}
+
+	return VerifyMismatchOutdatedHash, nil
 }

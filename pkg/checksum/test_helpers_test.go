@@ -76,6 +76,7 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 	t.Helper()
 
 	if len(actual) != len(expected) {
+		t.Logf("want %v vs got %v", expected, actual)
 		t.Fatalf(
 			"expected len %d, got %d",
 			len(expected), len(actual),
