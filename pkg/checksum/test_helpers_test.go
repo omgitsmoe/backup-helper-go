@@ -24,7 +24,7 @@ func assertErr(t *testing.T, err error) {
 func assertEqual[T comparable](t *testing.T, got, want T) {
 	t.Helper()
 	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
+		t.Fatalf("got '%v'\nwant '%v'", got, want)
 	}
 }
 
@@ -59,6 +59,39 @@ func createFilesFromList(t *testing.T, root string, relativePaths []string) {
 	}
 }
 
+type testFile struct {
+	relativePath string
+	mtime time.Time
+	contents []byte
+}
+
+func createFromTestFiles(t *testing.T, root string, testFiles []testFile) {
+	t.Helper()
+
+	for _, tf := range testFiles {
+		fullPath := filepath.Join(root, tf.relativePath)
+		dirPath := filepath.Dir(fullPath)
+		if err := os.MkdirAll(dirPath, 0777); err != nil {
+			t.Fatalf("failed to create parent dirs for test file: %v", err)
+		}
+
+		contents := []byte(tf.relativePath)
+		if tf.contents != nil {
+			contents = tf.contents
+		}
+		if err := os.WriteFile(fullPath, contents, 0644); err != nil {
+			t.Fatalf("failed to write test file at '%q': %s", fullPath, err)
+		}
+
+		if !tf.mtime.IsZero() {
+			err := os.Chtimes(fullPath, tf.mtime, tf.mtime)
+			if err != nil {
+				t.Fatalf("failed to write mtime of test file: %v", err)
+			}
+		}
+	}
+}
+
 func normalizeRelativeTestingPath(t *testing.T, root string, relativePaths []string) []string {
 	t.Helper()
 
@@ -74,6 +107,10 @@ func normalizeRelativeTestingPath(t *testing.T, root string, relativePaths []str
 
 func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 	t.Helper()
+
+	if (actual == nil) != (expected == nil) {
+		t.Fatalf("nil mismatch: expected %v, got %v", expected, actual)
+	}
 
 	if len(actual) != len(expected) {
 		t.Logf("want %v vs got %v", expected, actual)
@@ -101,6 +138,7 @@ func assertHashCollectionsEqual(t *testing.T, got *HashCollection, want *HashCol
 	if got == nil {
 		t.Fatalf("wanted a non-nil HashCollection, got %v", got)
 	}
+	t.Logf("want %v vs got %v", want, got)
 	assertEqual(t, got.name, want.name)
 	assertEqual(t, got.root, want.root)
 	assertTimeApproxEqual(t, got.mtime, want.mtime, time.Microsecond)

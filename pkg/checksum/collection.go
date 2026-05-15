@@ -1,6 +1,7 @@
 package checksum
 
 import (
+	"slices"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,9 @@ import (
 )
 
 var ErrFileExists = errors.New("file already exists")
+var ErrMissingRootInMerge = errors.New("must have a root to supoort merging")
+var ErrMergePardirBlocked = errors.New(
+	"merge would result in references beyond the collection root")
 
 type HashCollection struct {
 	root       string
@@ -148,4 +152,54 @@ func (c *HashCollection) ForEach(fn func (path string, file *File) bool) {
 
 func (c *HashCollection) Clear() {
 	clear(c.pathToFile)
+}
+
+// Merges all entries in `other` into `self`. If there are conflicts:
+// Keep the data from the collection with the more recent mtime.
+// If both mtimes are zero then our entries are preferred.
+func (c *HashCollection) Merge(other *HashCollection) error {
+	if c.root == "" || c.root == "." {
+		return fmt.Errorf("missing root on self: %w", ErrMissingRootInMerge)
+	}
+ 	if other.root == "" || other.root == "." {
+		return fmt.Errorf("missing root on other: %w", ErrMissingRootInMerge)
+	}
+
+	rel, err := filepath.Rel(c.root, other.root)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to build relative path to other file in merge: %w",
+			err)
+	}
+	rel = filepath.Clean(rel)
+	// NOTE: going down the tree is allowed for merging, but not going up!
+	//       otherwise, `c` would contain `..` paths after serializing!
+	parts := filepath.SplitList(rel)
+	if slices.Contains(parts, "..") {
+		return fmt.Errorf(
+				"merging not possible, relative paths would contain " +
+				"pardir components: %w", ErrMergePardirBlocked)
+		}
+
+	keepOurs := c.mtime.After(other.mtime)
+	if c.mtime.IsZero() {
+		if other.mtime.IsZero() {
+			keepOurs = true
+		} else {
+			keepOurs = false
+		}
+	}
+
+	// TODO: decide on a file by file basis based on the stored mtime
+	//       and only fall back to the collection mtime if no mtime
+	//       is stored
+	for p, f := range other.pathToFile {
+		_, exists := c.pathToFile[p]
+
+		if !exists || !keepOurs {
+			c.pathToFile[p] = f
+		}
+	}
+
+	return nil
 }

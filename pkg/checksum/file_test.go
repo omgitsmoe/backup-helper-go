@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 )
 
 func TestHashFile(t *testing.T) {
@@ -336,10 +336,10 @@ func TestVerify(t *testing.T) {
 						t.Fatalf("failed to write mtime of hash file: %v", err)
 					}
 				}
-
-				// patch actual path
-				tt.input.path = path
 			}
+
+			// patch actual path
+			tt.input.path = path
 
 			result, err := tt.input.Verify(nil)
 

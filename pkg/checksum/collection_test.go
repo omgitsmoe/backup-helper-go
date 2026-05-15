@@ -2,6 +2,7 @@ package checksum
 
 import (
 	"crypto"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -200,6 +201,416 @@ func TestNewHashCollectionFromDisk(t *testing.T) {
 			}
 
 			assertHashCollectionsEqual(t, hc, tt.expected)
+		})
+	}
+}
+
+func TestMerge(t *testing.T) {
+	tests := []struct {
+		name string
+		collection *HashCollection
+		other *HashCollection
+		expected *HashCollection
+		wantErr bool
+		errorKind error
+	}{
+		{
+			name:       "self missing root: empty",
+			collection: &HashCollection{},
+			other:      &HashCollection{
+				root: filepath.Join("foo"),
+			},
+			expected:   &HashCollection{},
+			wantErr:    true,
+			errorKind:  ErrMissingRootInMerge,
+		},
+		{
+			name:       "self missing root: curdir",
+			collection: &HashCollection{
+				root: ".",
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo"),
+			},
+			expected:   &HashCollection{},
+			wantErr:    true,
+			errorKind:  ErrMissingRootInMerge,
+		},
+		{
+			name:       "other missing root: curdir",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+			},
+			other:      &HashCollection{
+				root: ".",
+			},
+			expected:   &HashCollection{},
+			wantErr:    true,
+			errorKind:  ErrMissingRootInMerge,
+		},
+		{
+			name:       "err pardir",
+			collection: &HashCollection{
+				root: filepath.Join("foo", "bar"),
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo"),
+			},
+			expected:   &HashCollection{},
+			wantErr:    true,
+			errorKind:  ErrMergePardirBlocked,
+		},
+		{
+			name:       "both zero mtimes: keep ours",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo", "bar"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root: filepath.Join("foo"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:    false,
+			errorKind:  nil,
+		},
+		{
+			name:       "other zero mtime: keep ours",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo", "bar"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:    false,
+			errorKind:  nil,
+		},
+		{
+			name:       "other older: keep ours",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo", "bar"),
+				mtime: time.Unix(1111, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:    false,
+			errorKind:  nil,
+		},
+		{
+			name:       "self zero mtime: keep other",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo", "bar"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root: filepath.Join("foo"),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:    false,
+			errorKind:  nil,
+		},
+		{
+			name:       "self older: keep other",
+			collection: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(123, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other:      &HashCollection{
+				root: filepath.Join("foo", "bar"),
+				mtime: time.Unix(1111, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root: filepath.Join("foo"),
+				mtime: time.Unix(123, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:    false,
+			errorKind:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.collection.Merge(tt.other)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+
+				if tt.errorKind != nil {
+					if !errors.Is(err, tt.errorKind) {
+						t.Fatalf(
+							"expected error of kind '%v', got '%v'",
+							tt.errorKind, err,
+						)
+					}
+				}
+				return
+			} else {
+				assertNoErr(t, err)
+			}
+
+			assertHashCollectionsEqual(t, tt.collection, tt.expected)
 		})
 	}
 }
