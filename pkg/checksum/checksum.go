@@ -2,6 +2,8 @@ package checksum
 
 import (
 	"crypto"
+	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -32,7 +34,7 @@ type Options struct {
 	// Zero means only files in the root directory will be considered.
 	// One means at most one subdirectory will be allowed.
 	// None means no depth limit.
-	DiscoverHashFilesDept int
+	DiscoverHashFilesDepth int
 
 	// Whether the most_current hash file should filter out all files that are
 	// not found on disk at the time of generation.
@@ -42,15 +44,17 @@ type Options struct {
 	// for building the most current state of hashes.
 	// These hashes will be used when e.g. using the `incremental`
 	// method.
-	// TODO
-	// hash_files_matcher: PathMatcher,
+	// NOTE: `*.cshd` only matches `foo.cshd`, not `bar/foo.cshd`, to match
+	//       all `.cshd` files as well, specify `**/*.cshd`
+	HashFilesMatcher Matcher
 
 	// Allow/block list like matching for all files.
 	// Affects all file discovery behaviour: which files get included
 	// in an incremental hash file, which files are ignored when checking
 	// for files that don't have checksums in `check_missing`, etc.
-	// TODO
-	// all_files_matcher: PathMatcher,
+	// NOTE: `*.go` only matches `foo.go`, not `bar/foo.go`, to match
+	//       all `.go` files as well, specify `**/*.go`
+	AllFilesMatcher Matcher
 }
 
 func DefaultOptions() Options {
@@ -59,7 +63,7 @@ func DefaultOptions() Options {
 		IncrementalIncludeUnchangedFiles: true,
 		IncrementalSkipUnchanged:         false,
 		IncrementalPeriodicWriteInterval: 0,
-		DiscoverHashFilesDept:            -1,
+		DiscoverHashFilesDepth:            -1,
 		MostCurrentFilterDeleted:         true,
 	}
 }
@@ -140,4 +144,18 @@ func (c *Checker) VerifyRoot(progress func()) {
 // If `destination_directory` is relative, it is interpreted relative to the collection root.
 func (c *Checker) RebaseInto() {
 	panic("Not implemented! TODO")
+}
+
+// Generates a default filename for a hash file, `fallback` is used
+// if `root` does not have a filename.
+func defaultHashFileName(root string, fallback string, infix string) string {
+	prefix := filepath.Base(root)
+	if prefix == "." || prefix == "" || prefix == "/" {
+		prefix = fallback
+	}
+
+	t := time.Now()
+	datetime := t.Format("2006-01-02T150405")
+
+	return fmt.Sprintf("%s_%s%s.cshd", prefix, infix, datetime)
 }
