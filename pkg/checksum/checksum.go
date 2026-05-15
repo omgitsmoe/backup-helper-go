@@ -3,6 +3,7 @@ package checksum
 import (
 	"crypto"
 	"time"
+	"github.com/omgitsmoe/backup-helper-go/internal/foo"
 )
 
 type Checker struct {
@@ -69,6 +70,14 @@ func NewChecker(root string) Checker {
 		root:    root,
 		options: DefaultOptions(),
 	}
+}
+
+func (c *Checker) Foo(f *foo.Foo) {
+	panic("Not implemented! TODO")
+}
+
+func (c *Checker) MakeFoo() *foo.Foo {
+	return &foo.Foo{}
 }
 
 func (c *Checker) Incremental(progress func()) {
