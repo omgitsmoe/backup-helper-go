@@ -71,7 +71,7 @@ func TestHashFileHashNotAvailable(t *testing.T) {
 		if e.Hash != unimportedHash {
 			t.Fatalf("expected err.Hash == MD4, got %v", e.Hash)
 		}
-		
+
 		if !strings.Contains(e.Error(), "MD4") {
 			t.Fatalf("expected err.Error to contain 'MD4'")
 		}
@@ -104,17 +104,16 @@ func TestUpdateHash(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.hash.String(), func(t *testing.T) {
-			progressExpected := []struct { done, total uint64 } {
-				{ 11, 11 },
-				{ 11, 11 },
+			progressExpected := []struct{ done, total uint64 }{
+				{11, 11},
+				{11, 11},
 			}
-			progressReceived := []struct { done, total uint64 } {
-			}
+			progressReceived := []struct{ done, total uint64 }{}
 			progress := func(done, total uint64) {
 				progressReceived = append(
 					progressReceived,
-					struct { done, total uint64 }{
-						done: done, total: total, })
+					struct{ done, total uint64 }{
+						done: done, total: total})
 			}
 
 			file := NewFile(path, tt.hash)
@@ -186,9 +185,12 @@ func TestUpdateMetadataNotFound(t *testing.T) {
 }
 
 func TestHashFileNewCleansPath(t *testing.T) {
-	tests := []struct { path string; expectedPath string } {
-		{ path: "foo/.//./bar", expectedPath: filepath.Join("foo", "bar") },
-		{ path: "foo///../bar", expectedPath: "bar" },
+	tests := []struct {
+		path         string
+		expectedPath string
+	}{
+		{path: "foo/.//./bar", expectedPath: filepath.Join("foo", "bar")},
+		{path: "foo///../bar", expectedPath: "bar"},
 	}
 
 	for _, tt := range tests {
@@ -199,13 +201,13 @@ func TestHashFileNewCleansPath(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	tests := []struct {
-		name string
-		input *File
+		name         string
+		input        *File
 		fileContents []byte
-		fileMtime time.Time
-		expected VerifyResult
-		wantErr bool
-		errorKind error
+		fileMtime    time.Time
+		expected     VerifyResult
+		wantErr      bool
+		errorKind    error
 	}{
 		{
 			name: "err: missing hash",
@@ -217,10 +219,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte{},
 			},
 			fileContents: nil,
-			fileMtime: time.Time{},
-			expected: 0,
-			wantErr: true,
-			errorKind: ErrMissingHash,
+			fileMtime:    time.Time{},
+			expected:     0,
+			wantErr:      true,
+			errorKind:    ErrMissingHash,
 		},
 		{
 			name: "mismatch: missing file",
@@ -232,10 +234,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte("deadbeef"),
 			},
 			fileContents: nil,
-			fileMtime: time.Time{},
-			expected: VerifyFileMissing,
-			wantErr: true,
-			errorKind: os.ErrNotExist,
+			fileMtime:    time.Time{},
+			expected:     VerifyFileMissing,
+			wantErr:      true,
+			errorKind:    os.ErrNotExist,
 		},
 		{
 			name: "mismatch: size",
@@ -247,10 +249,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte("deadbeef"),
 			},
 			fileContents: []byte("123456"),
-			fileMtime: time.Time{},
-			expected: VerifyMismatchSize,
-			wantErr: false,
-			errorKind: nil,
+			fileMtime:    time.Time{},
+			expected:     VerifyMismatchSize,
+			wantErr:      false,
+			errorKind:    nil,
 		},
 		{
 			name: "mismatch",
@@ -262,10 +264,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte("deadbeef"),
 			},
 			fileContents: []byte("12345"),
-			fileMtime: time.Time{},
-			expected: VerifyMismatch,
-			wantErr: false,
-			errorKind: nil,
+			fileMtime:    time.Time{},
+			expected:     VerifyMismatch,
+			wantErr:      false,
+			errorKind:    nil,
 		},
 		{
 			name: "mismatch: corrupted",
@@ -277,10 +279,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte("deadbeef"),
 			},
 			fileContents: []byte("corrupted"),
-			fileMtime: time.Unix(1337, 1_330_000),
-			expected: VerifyMismatchCorrupted,
-			wantErr: false,
-			errorKind: nil,
+			fileMtime:    time.Unix(1337, 1_330_000),
+			expected:     VerifyMismatchCorrupted,
+			wantErr:      false,
+			errorKind:    nil,
 		},
 		{
 			name: "mismatch: outdated",
@@ -292,10 +294,10 @@ func TestVerify(t *testing.T) {
 				hash:     []byte("deadbeef"),
 			},
 			fileContents: []byte("corrupted"),
-			fileMtime: time.Unix(1337, 1_330_000),
-			expected: VerifyMismatchOutdatedHash,
-			wantErr: false,
-			errorKind: nil,
+			fileMtime:    time.Unix(1337, 1_330_000),
+			expected:     VerifyMismatchOutdatedHash,
+			wantErr:      false,
+			errorKind:    nil,
 		},
 		{
 			name: "ok",
@@ -304,16 +306,16 @@ func TestVerify(t *testing.T) {
 				mtime:    time.Time{},
 				size:     0,
 				hashType: Hash{crypto.MD5},
-				hash:     []byte{
+				hash: []byte{
 					0x5e, 0xb6, 0x3b, 0xbb, 0xe0, 0x1e, 0xee, 0xd0,
 					0x93, 0xcb, 0x22, 0xbb, 0x8f, 0x5a, 0xcd, 0xc3,
 				},
 			},
 			fileContents: []byte("hello world"),
-			fileMtime: time.Time{},
-			expected: VerifyOK,
-			wantErr: false,
-			errorKind: nil,
+			fileMtime:    time.Time{},
+			expected:     VerifyOK,
+			wantErr:      false,
+			errorKind:    nil,
 		},
 	}
 
@@ -374,25 +376,24 @@ func TestVerifyReportsProgress(t *testing.T) {
 		t.Fatalf("failed to write test hash file: %v", err)
 	}
 
-	progressExpected := []struct { done, total uint64 } {
-		{ 11, 11 },
-		{ 11, 11 },
+	progressExpected := []struct{ done, total uint64 }{
+		{11, 11},
+		{11, 11},
 	}
-	progressReceived := []struct { done, total uint64 } {
-	}
+	progressReceived := []struct{ done, total uint64 }{}
 	progress := func(done, total uint64) {
 		progressReceived = append(
 			progressReceived,
-			struct { done, total uint64 }{
-				done: done, total: total, })
+			struct{ done, total uint64 }{
+				done: done, total: total})
 	}
 
-	file :=  &File{
+	file := &File{
 		path:     path,
 		mtime:    time.Time{},
 		size:     0,
 		hashType: Hash{crypto.MD5},
-		hash:     []byte{
+		hash: []byte{
 			0x5e, 0xb6, 0x3b, 0xbb, 0xe0, 0x1e, 0xee, 0xd0,
 			0x93, 0xcb, 0x22, 0xbb, 0x8f, 0x5a, 0xcd, 0xc3,
 		},

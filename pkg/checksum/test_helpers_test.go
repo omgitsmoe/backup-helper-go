@@ -61,8 +61,8 @@ func createFilesFromList(t *testing.T, root string, relativePaths []string) {
 
 type testFile struct {
 	relativePath string
-	mtime time.Time
-	contents []byte
+	mtime        time.Time
+	contents     []byte
 }
 
 func createFromTestFiles(t *testing.T, root string, testFiles []testFile) {

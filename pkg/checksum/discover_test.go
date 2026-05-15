@@ -199,14 +199,14 @@ func TestDiscoverHashFiles(t *testing.T) {
 	})
 
 	tests := []struct {
-		name                  string
-		matcher               Matcher
-		discoverDepth         int
-		expectedPaths         []string
+		name          string
+		matcher       Matcher
+		discoverDepth int
+		expectedPaths []string
 	}{
 		{
-			name:    "all hash files",
-			matcher: Matcher{},
+			name:          "all hash files",
+			matcher:       Matcher{},
 			discoverDepth: -1,
 			expectedPaths: []string{
 				"baz/xer/xer_bh_2026-01-13.cshd",
@@ -231,8 +231,8 @@ func TestDiscoverHashFiles(t *testing.T) {
 			},
 		},
 		{
-			name:    "only root depth",
-			matcher: Matcher{},
+			name:          "only root depth",
+			matcher:       Matcher{},
 			discoverDepth: 0,
 			expectedPaths: []string{
 				"check.sha3_256",
@@ -240,8 +240,8 @@ func TestDiscoverHashFiles(t *testing.T) {
 			},
 		},
 		{
-			name:    "up to child dirs of root",
-			matcher: Matcher{},
+			name:          "up to child dirs of root",
+			matcher:       Matcher{},
 			discoverDepth: 1,
 			expectedPaths: []string{
 				"check.sha3_256",
@@ -250,8 +250,8 @@ func TestDiscoverHashFiles(t *testing.T) {
 			},
 		},
 		{
-			name:    "all depth",
-			matcher: Matcher{},
+			name:          "all depth",
+			matcher:       Matcher{},
 			discoverDepth: 2,
 			expectedPaths: []string{
 				"baz/xer/xer_bh_2026-01-13.cshd",
@@ -325,10 +325,10 @@ func TestDiscoverHashFiles(t *testing.T) {
 
 func TestDirectoryDepth(t *testing.T) {
 	tests := []struct {
-		base string
-		target string
+		base     string
+		target   string
 		expected int
-		wantErr bool
+		wantErr  bool
 	}{
 		{
 			base:     filepath.Join("foo"),

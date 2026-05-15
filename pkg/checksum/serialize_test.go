@@ -10,9 +10,12 @@ import (
 )
 
 func TestTimeConversion(t *testing.T) {
-	tests := []struct{ time time.Time; expectedF64 float64 } {
-		{ time: time.Unix(1337, 1_330_000), expectedF64: 1337.00133 },
-		{ time: time.Unix(123456, 7_890_123), expectedF64: 123456.007890123 },
+	tests := []struct {
+		time        time.Time
+		expectedF64 float64
+	}{
+		{time: time.Unix(1337, 1_330_000), expectedF64: 1337.00133},
+		{time: time.Unix(123456, 7_890_123), expectedF64: 123456.007890123},
 	}
 
 	for _, tt := range tests {
@@ -28,30 +31,30 @@ func setupHashCollection(root string) *HashCollection {
 	name := "test.cshd"
 
 	hc := &HashCollection{
-		root: root,
-		name: name,
+		root:  root,
+		name:  name,
 		mtime: time.Time{},
 		pathToFile: map[string]*File{
 			filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"): {
-				path: filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"),
-				mtime: time.Unix(1673815645, 797977200),
-				size: 1337,
+				path:     filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"),
+				mtime:    time.Unix(1673815645, 797977200),
+				size:     1337,
 				hashType: Hash{crypto.SHA512},
-				hash: []byte{ 0xde, 0xad, 0xbe, 0xef },
+				hash:     []byte{0xde, 0xad, 0xbe, 0xef},
 			},
 			filepath.Join(root, "foo", "bar"): {
-				path: filepath.Join(root, "foo", "bar"),
-				mtime: time.Unix(1337, 1_330_000),
-				size: 0,
+				path:     filepath.Join(root, "foo", "bar"),
+				mtime:    time.Unix(1337, 1_330_000),
+				size:     0,
 				hashType: Hash{crypto.MD5},
-				hash: []byte{ 0xff, 0xff, 0xff },
+				hash:     []byte{0xff, 0xff, 0xff},
 			},
 			filepath.Join(root, "xer", "foo.bin"): {
-				path: filepath.Join(root, "xer", "foo.bin"),
-				mtime: time.Time{},
-				size: 0,
+				path:     filepath.Join(root, "xer", "foo.bin"),
+				mtime:    time.Time{},
+				size:     0,
 				hashType: Hash{crypto.SHA256},
-				hash: []byte{ 0xab, 0xab, 0xab },
+				hash:     []byte{0xab, 0xab, 0xab},
 			},
 		},
 	}
@@ -70,7 +73,7 @@ func TestFlushOnlyWritesHeaderOnce(t *testing.T) {
 	got := sb.String()
 
 	assertEqual(t, got,
-`# version 1
+		`# version 1
 1673815645.7979772,1337,sha512,deadbeef bar foo/bar/baz xer/file.txt
 1337.00133,,md5,ffffff foo/bar
 ,,sha256,ababab xer/foo.bin
@@ -84,39 +87,39 @@ func TestSerializer(t *testing.T) {
 	root := t.TempDir()
 	name := "test.cshd"
 
-	tests := []struct{
-		name string
-		input *HashCollection
+	tests := []struct {
+		name     string
+		input    *HashCollection
 		expected string
-		wantErr bool
+		wantErr  bool
 	}{
 		{
 			name: "stable order",
 			input: &HashCollection{
-				root: root,
-				name: name,
+				root:  root,
+				name:  name,
 				mtime: time.Time{},
 				pathToFile: map[string]*File{
 					filepath.Join(root, "xer", "foo.bin"): {
-						path: filepath.Join(root, "xer", "foo.bin"),
-						mtime: time.Time{},
-						size: 0,
+						path:     filepath.Join(root, "xer", "foo.bin"),
+						mtime:    time.Time{},
+						size:     0,
 						hashType: Hash{crypto.SHA256},
-						hash: []byte{ 0xab, 0xab, 0xab },
+						hash:     []byte{0xab, 0xab, 0xab},
 					},
 					filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"): {
-						path: filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"),
-						mtime: time.Unix(1673815645, 797977200),
-						size: 1337,
+						path:     filepath.Join(root, "bar foo", "bar", "baz xer", "file.txt"),
+						mtime:    time.Unix(1673815645, 797977200),
+						size:     1337,
 						hashType: Hash{crypto.SHA512},
-						hash: []byte{ 0xde, 0xad, 0xbe, 0xef },
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
 					},
 					filepath.Join(root, "foo", "bar"): {
-						path: filepath.Join(root, "foo", "bar"),
-						mtime: time.Unix(1337, 1_330_000),
-						size: 0,
+						path:     filepath.Join(root, "foo", "bar"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     0,
 						hashType: Hash{crypto.MD5},
-						hash: []byte{ 0xff, 0xff, 0xff },
+						hash:     []byte{0xff, 0xff, 0xff},
 					},
 				},
 			},
@@ -130,32 +133,32 @@ func TestSerializer(t *testing.T) {
 		{
 			name: "empty collection",
 			input: &HashCollection{
-				root: root,
-				name: name,
-				mtime: time.Time{},
+				root:       root,
+				name:       name,
+				mtime:      time.Time{},
 				pathToFile: map[string]*File{},
 			},
 			expected: "",
-			wantErr: false,
+			wantErr:  false,
 		},
 		{
 			name: "unsupported hash type",
 			input: &HashCollection{
-				root: root,
-				name: name,
+				root:  root,
+				name:  name,
 				mtime: time.Time{},
 				pathToFile: map[string]*File{
 					filepath.Join(root, "foo"): {
-						path: filepath.Join(root, "foo"),
-						mtime: time.Time{},
-						size: 0,
+						path:     filepath.Join(root, "foo"),
+						mtime:    time.Time{},
+						size:     0,
 						hashType: Hash{crypto.BLAKE2b_256},
-						hash: []byte{},
+						hash:     []byte{},
 					},
 				},
 			},
 			expected: "",
-			wantErr: true,
+			wantErr:  true,
 		},
 	}
 

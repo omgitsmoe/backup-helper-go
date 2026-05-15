@@ -2,15 +2,15 @@ package checksum
 
 import (
 	"bufio"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"math"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"errors"
 	"time"
-	"math"
-	"encoding/hex"
-	"path/filepath"
 )
 
 var errSkipCommentOrEmpty = errors.New("skip comment or empty line")
@@ -191,7 +191,7 @@ func parseHashType(field string) (Hash, error) {
 	return Hash{}, fmt.Errorf("empty hash type: %w", ErrMissingField)
 }
 
-func parseHash(field  string) ([]byte, error) {
+func parseHash(field string) ([]byte, error) {
 	if field != "" {
 		hash, err := hex.DecodeString(field)
 		if err != nil {

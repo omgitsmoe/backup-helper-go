@@ -1,22 +1,23 @@
 package checksum
 
 import (
-	"io"
 	"fmt"
-	"time"
-	"strconv"
+	"io"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"time"
 )
 
 // NOTE: apparently this is done in the stdlib to get test-time
-//       dependency injection by overwriting it in tests
-//       see https://github.com/golang/go/blob/d36353499f673c89a267a489beb80133a14a75f9/src/database/sql/sql.go#L50
-//       https://github.com/golang/go/blob/d36353499f673c89a267a489beb80133a14a75f9/src/database/sql/sql_test.go#L2348-L2349
+//
+//	dependency injection by overwriting it in tests
+//	see https://github.com/golang/go/blob/d36353499f673c89a267a489beb80133a14a75f9/src/database/sql/sql.go#L50
+//	https://github.com/golang/go/blob/d36353499f673c89a267a489beb80133a14a75f9/src/database/sql/sql_test.go#L2348-L2349
 var serializeRelFunc = filepath.Rel
 
 type Serializer struct {
-	w            io.Writer
+	w             io.Writer
 	headerWritten bool
 }
 

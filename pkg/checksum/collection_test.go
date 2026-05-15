@@ -97,74 +97,74 @@ func TestUpdateMtime(t *testing.T) {
 func TestNewHashCollectionFromDisk(t *testing.T) {
 	root := t.TempDir()
 
-	tests := []struct{
-		name string
-		path string
+	tests := []struct {
+		name         string
+		path         string
 		fileContents []byte
-		expected *HashCollection
-		wantErr bool
+		expected     *HashCollection
+		wantErr      bool
 	}{
 		{
-			name: "file not found",
-			path: filepath.Join(root, "does", "not", "exist.cshd"),
+			name:         "file not found",
+			path:         filepath.Join(root, "does", "not", "exist.cshd"),
 			fileContents: nil,
-			expected: nil,
-			wantErr: true,
+			expected:     nil,
+			wantErr:      true,
 		},
 		{
-			name: "unexpected extension",
-			path: filepath.Join(root, "does", "not", "exist.foo"),
+			name:         "unexpected extension",
+			path:         filepath.Join(root, "does", "not", "exist.foo"),
 			fileContents: []byte("foo"),
-			expected: nil,
-			wantErr: true,
+			expected:     nil,
+			wantErr:      true,
 		},
 		{
-			name: "invalid cshd file",
-			path: filepath.Join(root, "file.cshd"),
+			name:         "invalid cshd file",
+			path:         filepath.Join(root, "file.cshd"),
 			fileContents: []byte("foo"),
-			expected: nil,
-			wantErr: true,
+			expected:     nil,
+			wantErr:      true,
 		},
 		{
-			name: "invalid single-hash file",
-			path: filepath.Join(root, "file.md5"),
+			name:         "invalid single-hash file",
+			path:         filepath.Join(root, "file.md5"),
 			fileContents: []byte("foo"),
-			expected: nil,
-			wantErr: true,
+			expected:     nil,
+			wantErr:      true,
 		},
 		{
-			name: "valid cshd file",
-			path: filepath.Join(root, "file.cshd"),
+			name:         "valid cshd file",
+			path:         filepath.Join(root, "file.cshd"),
 			fileContents: []byte("# version 1\n1337.00133,42069,md5,deadbeef foo/bar.txt\n"),
 			expected: &HashCollection{
 				root: root,
 				name: "file.cshd",
 				pathToFile: map[string]*File{
 					filepath.Join(root, "foo", "bar.txt"): {
-						path: filepath.Join(root, "foo", "bar.txt"),
-						mtime: time.Unix(1337, 1_330_000),
-						size: 42069,
+						path:     filepath.Join(root, "foo", "bar.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
 						hashType: Hash{crypto.MD5},
-						hash: []byte{ 0xde, 0xad, 0xbe, 0xef },
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
 					},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "valid single-hash file",
-			path: filepath.Join(root, "file.sha512"),
+			name:         "valid single-hash file",
+			path:         filepath.Join(root, "file.sha512"),
 			fileContents: []byte("deadbeef foo/bar.txt\n"),
 			expected: &HashCollection{
 				root: root,
 				name: "file.sha512",
 				pathToFile: map[string]*File{
 					filepath.Join(root, "foo", "bar.txt"): {
-						path: filepath.Join(root, "foo", "bar.txt"),
-						mtime: time.Time{},
-						size: 0,
+						path:     filepath.Join(root, "foo", "bar.txt"),
+						mtime:    time.Time{},
+						size:     0,
 						hashType: Hash{crypto.SHA512},
-						hash: []byte{ 0xde, 0xad, 0xbe, 0xef },
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
 					},
 				},
 			},
@@ -207,61 +207,61 @@ func TestNewHashCollectionFromDisk(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	tests := []struct {
-		name string
+		name       string
 		collection *HashCollection
-		other *HashCollection
-		expected *HashCollection
-		wantErr bool
-		errorKind error
+		other      *HashCollection
+		expected   *HashCollection
+		wantErr    bool
+		errorKind  error
 	}{
 		{
 			name:       "self missing root: empty",
 			collection: &HashCollection{},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: filepath.Join("foo"),
 			},
-			expected:   &HashCollection{},
-			wantErr:    true,
-			errorKind:  ErrMissingRootInMerge,
+			expected:  &HashCollection{},
+			wantErr:   true,
+			errorKind: ErrMissingRootInMerge,
 		},
 		{
-			name:       "self missing root: curdir",
+			name: "self missing root: curdir",
 			collection: &HashCollection{
 				root: ".",
 			},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: filepath.Join("foo"),
 			},
-			expected:   &HashCollection{},
-			wantErr:    true,
-			errorKind:  ErrMissingRootInMerge,
+			expected:  &HashCollection{},
+			wantErr:   true,
+			errorKind: ErrMissingRootInMerge,
 		},
 		{
-			name:       "other missing root: curdir",
+			name: "other missing root: curdir",
 			collection: &HashCollection{
 				root: filepath.Join("foo"),
 			},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: ".",
 			},
-			expected:   &HashCollection{},
-			wantErr:    true,
-			errorKind:  ErrMissingRootInMerge,
+			expected:  &HashCollection{},
+			wantErr:   true,
+			errorKind: ErrMissingRootInMerge,
 		},
 		{
-			name:       "err pardir",
+			name: "err pardir",
 			collection: &HashCollection{
 				root: filepath.Join("foo", "bar"),
 			},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: filepath.Join("foo"),
 			},
-			expected:   &HashCollection{},
-			wantErr:    true,
-			errorKind:  ErrMergePardirBlocked,
+			expected:  &HashCollection{},
+			wantErr:   true,
+			errorKind: ErrMergePardirBlocked,
 		},
 		{
-			name:       "both zero mtimes: keep ours",
+			name: "both zero mtimes: keep ours",
 			collection: &HashCollection{
 				root: filepath.Join("foo"),
 				pathToFile: map[string]*File{
@@ -281,11 +281,11 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: filepath.Join("foo", "bar"),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("other", "xer.txt"): {
 						path:     filepath.Join("other", "xer.txt"),
@@ -322,13 +322,13 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			wantErr:    false,
-			errorKind:  nil,
+			wantErr:   false,
+			errorKind: nil,
 		},
 		{
-			name:       "other zero mtime: keep ours",
+			name: "other zero mtime: keep ours",
 			collection: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(1337, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
@@ -347,11 +347,11 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			other:      &HashCollection{
+			other: &HashCollection{
 				root: filepath.Join("foo", "bar"),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("other", "xer.txt"): {
 						path:     filepath.Join("other", "xer.txt"),
@@ -363,7 +363,7 @@ func TestMerge(t *testing.T) {
 				},
 			},
 			expected: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(1337, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
@@ -389,13 +389,13 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			wantErr:    false,
-			errorKind:  nil,
+			wantErr:   false,
+			errorKind: nil,
 		},
 		{
-			name:       "other older: keep ours",
+			name: "other older: keep ours",
 			collection: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(1337, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
@@ -414,12 +414,12 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			other:      &HashCollection{
-				root: filepath.Join("foo", "bar"),
+			other: &HashCollection{
+				root:  filepath.Join("foo", "bar"),
 				mtime: time.Unix(1111, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("other", "xer.txt"): {
 						path:     filepath.Join("other", "xer.txt"),
@@ -431,7 +431,7 @@ func TestMerge(t *testing.T) {
 				},
 			},
 			expected: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(1337, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
@@ -457,11 +457,11 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			wantErr:    false,
-			errorKind:  nil,
+			wantErr:   false,
+			errorKind: nil,
 		},
 		{
-			name:       "self zero mtime: keep other",
+			name: "self zero mtime: keep other",
 			collection: &HashCollection{
 				root: filepath.Join("foo"),
 				pathToFile: map[string]*File{
@@ -481,12 +481,12 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			other:      &HashCollection{
-				root: filepath.Join("foo", "bar"),
+			other: &HashCollection{
+				root:  filepath.Join("foo", "bar"),
 				mtime: time.Unix(1337, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("other", "xer.txt"): {
 						path:     filepath.Join("other", "xer.txt"),
@@ -501,7 +501,7 @@ func TestMerge(t *testing.T) {
 				root: filepath.Join("foo"),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("ours", "bar.txt"): {
 						path:     filepath.Join("ours", "bar.txt"),
@@ -519,13 +519,13 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			wantErr:    false,
-			errorKind:  nil,
+			wantErr:   false,
+			errorKind: nil,
 		},
 		{
-			name:       "self older: keep other",
+			name: "self older: keep other",
 			collection: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(123, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
@@ -544,12 +544,12 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			other:      &HashCollection{
-				root: filepath.Join("foo", "bar"),
+			other: &HashCollection{
+				root:  filepath.Join("foo", "bar"),
 				mtime: time.Unix(1111, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("other", "xer.txt"): {
 						path:     filepath.Join("other", "xer.txt"),
@@ -561,11 +561,11 @@ func TestMerge(t *testing.T) {
 				},
 			},
 			expected: &HashCollection{
-				root: filepath.Join("foo"),
+				root:  filepath.Join("foo"),
 				mtime: time.Unix(123, 0),
 				pathToFile: map[string]*File{
 					filepath.Join("foo", "conflict.txt"): {
-						path:     filepath.Join("foo", "conflict.txt"),
+						path: filepath.Join("foo", "conflict.txt"),
 					},
 					filepath.Join("ours", "bar.txt"): {
 						path:     filepath.Join("ours", "bar.txt"),
@@ -583,8 +583,8 @@ func TestMerge(t *testing.T) {
 					},
 				},
 			},
-			wantErr:    false,
-			errorKind:  nil,
+			wantErr:   false,
+			errorKind: nil,
 		},
 	}
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 	"sort"
+	"time"
 )
 
 func buildMostCurrent(root string, options *Options, progress func()) (*HashCollection, error) {
@@ -46,7 +46,7 @@ func buildMostCurrent(root string, options *Options, progress func()) (*HashColl
 			}
 		}
 
-		for _, p := range  toDelete {
+		for _, p := range toDelete {
 			delete(mostCurrent.pathToFile, p)
 		}
 	}
@@ -55,7 +55,7 @@ func buildMostCurrent(root string, options *Options, progress func()) (*HashColl
 }
 
 type pathWithMTime struct {
-	Path string
+	Path  string
 	MTime time.Time
 }
 
@@ -72,7 +72,7 @@ func sortPathsByAscendingMTime(paths []string) ([]pathWithMTime, error) {
 		mtime := info.ModTime()
 
 		pathsWithMTime = append(
-			pathsWithMTime, pathWithMTime{ Path: path, MTime: mtime })
+			pathsWithMTime, pathWithMTime{Path: path, MTime: mtime})
 	}
 
 	// sort.Slice func receives indices and should return true

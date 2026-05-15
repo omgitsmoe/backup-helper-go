@@ -63,7 +63,7 @@ func DefaultOptions() Options {
 		IncrementalIncludeUnchangedFiles: true,
 		IncrementalSkipUnchanged:         false,
 		IncrementalPeriodicWriteInterval: 0,
-		DiscoverHashFilesDepth:            -1,
+		DiscoverHashFilesDepth:           -1,
 		MostCurrentFilterDeleted:         true,
 	}
 }

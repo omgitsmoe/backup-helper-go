@@ -7,9 +7,12 @@ import (
 )
 
 func TestHashFromIdentifier(t *testing.T) {
-	tests := []struct{ id string; expected Hash } {
-		{ id: "md4", expected: Hash{crypto.MD4}, },
-		{ id: "sha512", expected: Hash{crypto.SHA512}, },
+	tests := []struct {
+		id       string
+		expected Hash
+	}{
+		{id: "md4", expected: Hash{crypto.MD4}},
+		{id: "sha512", expected: Hash{crypto.SHA512}},
 	}
 
 	for _, tt := range tests {
@@ -26,10 +29,13 @@ func TestHashFromIdentifierUnknown(t *testing.T) {
 }
 
 func TestHashToIdentifier(t *testing.T) {
-	tests := []struct{ hash Hash; expected string } {
-		{ hash: Hash{crypto.MD4}, expected: "md4", },
-		{ hash: Hash{crypto.SHA512}, expected: "sha512", },
-		{ hash: Hash{crypto.SHA3_384}, expected: "sha3_384", },
+	tests := []struct {
+		hash     Hash
+		expected string
+	}{
+		{hash: Hash{crypto.MD4}, expected: "md4"},
+		{hash: Hash{crypto.SHA512}, expected: "sha512"},
+		{hash: Hash{crypto.SHA3_384}, expected: "sha3_384"},
 	}
 
 	for _, tt := range tests {
@@ -40,10 +46,10 @@ func TestHashToIdentifier(t *testing.T) {
 }
 
 func TestHashToIdentifierUnsupported(t *testing.T) {
-	tests := []struct{ hash Hash; } {
-		{ hash: Hash{crypto.SHA224}, },
-		{ hash: Hash{crypto.BLAKE2b_256}, },
-		{ hash: Hash{crypto.RIPEMD160}, },
+	tests := []struct{ hash Hash }{
+		{hash: Hash{crypto.SHA224}},
+		{hash: Hash{crypto.BLAKE2b_256}},
+		{hash: Hash{crypto.RIPEMD160}},
 	}
 
 	for _, tt := range tests {

@@ -1,12 +1,12 @@
 package checksum
 
 import (
-	"slices"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
-	"errors"
 )
 
 var ErrFileExists = errors.New("file already exists")
@@ -142,7 +142,7 @@ func (c *HashCollection) Insert(file *File) error {
 	return nil
 }
 
-func (c *HashCollection) ForEach(fn func (path string, file *File) bool) {
+func (c *HashCollection) ForEach(fn func(path string, file *File) bool) {
 	for p, f := range c.pathToFile {
 		if !fn(p, f) {
 			return
@@ -161,7 +161,7 @@ func (c *HashCollection) Merge(other *HashCollection) error {
 	if c.root == "" || c.root == "." {
 		return fmt.Errorf("missing root on self: %w", ErrMissingRootInMerge)
 	}
- 	if other.root == "" || other.root == "." {
+	if other.root == "" || other.root == "." {
 		return fmt.Errorf("missing root on other: %w", ErrMissingRootInMerge)
 	}
 
@@ -177,9 +177,9 @@ func (c *HashCollection) Merge(other *HashCollection) error {
 	parts := filepath.SplitList(rel)
 	if slices.Contains(parts, "..") {
 		return fmt.Errorf(
-				"merging not possible, relative paths would contain " +
+			"merging not possible, relative paths would contain "+
 				"pardir components: %w", ErrMergePardirBlocked)
-		}
+	}
 
 	keepOurs := c.mtime.After(other.mtime)
 	if c.mtime.IsZero() {

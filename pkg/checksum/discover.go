@@ -79,21 +79,21 @@ func discoverHashFiles(root string, options *Options, progress func()) ([]string
 }
 
 var hashFileExtensions = []string{
-    ".cshd",
-    ".md5",
-    ".sha1",
-    ".sha224",
-    ".sha256",
-    ".sha384",
-    ".sha512",
-    ".sha3_224",
-    ".sha3_256",
-    ".sha3_384",
-    ".sha3_512",
-    // ".shake_128",
-    // ".shake_256",
-    // ".blake2b",
-    // ".blake2s",
+	".cshd",
+	".md5",
+	".sha1",
+	".sha224",
+	".sha256",
+	".sha384",
+	".sha512",
+	".sha3_224",
+	".sha3_256",
+	".sha3_384",
+	".sha3_512",
+	// ".shake_128",
+	// ".shake_256",
+	// ".blake2b",
+	// ".blake2s",
 }
 
 func isHashFile(path string) bool {
@@ -106,8 +106,8 @@ func directoryDepth(base string, target string) (int, error) {
 	rel, err := filepath.Rel(base, target)
 	if err != nil {
 		return 0, fmt.Errorf(
-			"failed to make path relative to iteration root, " +
-			"this must succeed: %w", err)
+			"failed to make path relative to iteration root, "+
+				"this must succeed: %w", err)
 	}
 
 	if rel == "" || rel == "." {

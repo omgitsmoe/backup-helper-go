@@ -10,23 +10,23 @@ import (
 
 func TestSortPathsByAscendingMTime(t *testing.T) {
 	tests := []struct {
-		name string
+		name       string
 		inputPaths []string
-		expected []pathWithMTime
+		expected   []pathWithMTime
 	}{
 		{
 			name: "order",
-			inputPaths: []string {
+			inputPaths: []string{
 				filepath.Join("foo", "xer"),
 				filepath.Join("xer"),
 				filepath.Join("foo", "bar"),
 				filepath.Join("bar"),
 			},
-			expected: []pathWithMTime {
-				{ Path: filepath.Join("foo", "bar"), MTime: time.Unix(1234, 3_456_000) },
-				{ Path: filepath.Join("bar"), MTime: time.Unix(1234, 3_459_000) },
-				{ Path: filepath.Join("foo", "xer"), MTime: time.Unix(42069, 1337) },
-				{ Path: filepath.Join("xer"), MTime: time.Unix(163378, 0) },
+			expected: []pathWithMTime{
+				{Path: filepath.Join("foo", "bar"), MTime: time.Unix(1234, 3_456_000)},
+				{Path: filepath.Join("bar"), MTime: time.Unix(1234, 3_459_000)},
+				{Path: filepath.Join("foo", "xer"), MTime: time.Unix(42069, 1337)},
+				{Path: filepath.Join("xer"), MTime: time.Unix(163378, 0)},
 			},
 		},
 	}
@@ -74,7 +74,7 @@ func TestSortPathsByAscendingMTime(t *testing.T) {
 }
 
 func TestSortPathsByAscendingMTimeFileNotFound(t *testing.T) {
-	paths, err := sortPathsByAscendingMTime([]string {
+	paths, err := sortPathsByAscendingMTime([]string{
 		filepath.Join("this", "file", "does", "not", "exist.txt"),
 		filepath.Join("neither", "does", "this", "file"),
 	})
@@ -85,13 +85,13 @@ func TestSortPathsByAscendingMTimeFileNotFound(t *testing.T) {
 
 func TestBuildMostCurrent(t *testing.T) {
 	tests := []struct {
-		name string
+		name                   string
 		discoverHashFilesDepth int
-		filterDeleted bool
-		hashFilesMatcher Matcher
-		testFiles []testFile
-		expectedSerialization string
-		wantErr bool
+		filterDeleted          bool
+		hashFilesMatcher       Matcher
+		testFiles              []testFile
+		expectedSerialization  string
+		wantErr                bool
 	}{
 		{
 			name:                   "empty dir",
@@ -107,11 +107,11 @@ func TestBuildMostCurrent(t *testing.T) {
 			discoverHashFilesDepth: -1,
 			filterDeleted:          false,
 			hashFilesMatcher:       Matcher{},
-			testFiles:              []testFile{
+			testFiles: []testFile{
 				{
 					relativePath: "file.cshd",
 					mtime:        time.Unix(100, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 33779,2233,md5,abababab foo/bar/file.bin
 3500.25,888,sha256,5577 foo/data/vid.mp4
@@ -124,7 +124,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "file.md5",
 					mtime:        time.Unix(200, 0),
-					contents:     []byte(`5577 foo/data/vid.mp4
+					contents: []byte(`5577 foo/data/vid.mp4
 1111 empty.dat
 3344 root.txt
 6666 tiny.flag
@@ -134,7 +134,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "foo/file.cshd",
 					mtime:        time.Unix(300, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1133779,112233,md5,abababab bar/file.bin
 112500.25,11777,sha256,5555 data/blob.bin
 113500.25,11888,sha256,5577 data/vid.mp4
@@ -143,12 +143,12 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "nested/dir/file.sha256",
 					mtime:        time.Unix(400, 0),
-					contents:     []byte(`2222 a.txt
+					contents: []byte(`2222 a.txt
 8877 sub/deep.bin
 `),
 				},
 			},
-			expectedSerialization:  `# version 1
+			expectedSerialization: `# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 ,,md5,4444 deep/inside/file.log
 ,,md5,1111 empty.dat
@@ -161,18 +161,18 @@ func TestBuildMostCurrent(t *testing.T) {
 ,,md5,3344 root.txt
 ,,md5,6666 tiny.flag
 `,
-			wantErr:                false,
+			wantErr: false,
 		},
 		{
 			name:                   "filter deleted",
 			discoverHashFilesDepth: -1,
 			filterDeleted:          true,
 			hashFilesMatcher:       Matcher{},
-			testFiles:              []testFile{
+			testFiles: []testFile{
 				{
 					relativePath: "file.cshd",
 					mtime:        time.Unix(100, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 33779,2233,md5,abababab foo/bar/file.bin
 3500.25,888,sha256,5577 foo/data/vid.mp4
@@ -185,33 +185,33 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "nested/dir/file.sha256",
 					mtime:        time.Unix(400, 0),
-					contents:     []byte(`2222 a.txt
+					contents: []byte(`2222 a.txt
 8877 sub/deep.bin
 `),
 				},
-				{ relativePath: "abc.txt", },
-				{ relativePath: "foo/bar/file.bin", },
-				{ relativePath: "nested/dir/a.txt", },
-				{ relativePath: "nested/dir/sub/foo.doc", },
+				{relativePath: "abc.txt"},
+				{relativePath: "foo/bar/file.bin"},
+				{relativePath: "nested/dir/a.txt"},
+				{relativePath: "nested/dir/sub/foo.doc"},
 			},
-			expectedSerialization:  `# version 1
+			expectedSerialization: `# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 33779,2233,md5,abababab foo/bar/file.bin
 ,,sha256,2222 nested/dir/a.txt
 6666.6,4096,sha256,9999 nested/dir/sub/foo.doc
 `,
-			wantErr:                false,
+			wantErr: false,
 		},
 		{
 			name:                   "discover depth",
 			discoverHashFilesDepth: 1,
 			filterDeleted:          false,
 			hashFilesMatcher:       Matcher{},
-			testFiles:              []testFile{
+			testFiles: []testFile{
 				{
 					relativePath: "file.cshd",
 					mtime:        time.Unix(100, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 33779,2233,md5,abababab foo/bar/file.bin
 3500.25,888,sha256,5577 foo/data/vid.mp4
@@ -224,7 +224,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "file.md5",
 					mtime:        time.Unix(200, 0),
-					contents:     []byte(`5577 foo/data/vid.mp4
+					contents: []byte(`5577 foo/data/vid.mp4
 1111 empty.dat
 3344 root.txt
 6666 tiny.flag
@@ -234,7 +234,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "foo/file.cshd",
 					mtime:        time.Unix(300, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1133779,112233,md5,abababab bar/file.bin
 112500.25,11777,sha256,5555 data/blob.bin
 113500.25,11888,sha256,5577 data/vid.mp4
@@ -243,12 +243,12 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "nested/dir/file.sha256",
 					mtime:        time.Unix(400, 0),
-					contents:     []byte(`2222 a.txt
+					contents: []byte(`2222 a.txt
 8877 sub/deep.bin
 `),
 				},
 			},
-			expectedSerialization:  `# version 1
+			expectedSerialization: `# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 ,,md5,4444 deep/inside/file.log
 ,,md5,1111 empty.dat
@@ -260,20 +260,20 @@ func TestBuildMostCurrent(t *testing.T) {
 ,,md5,3344 root.txt
 ,,md5,6666 tiny.flag
 `,
-			wantErr:                false,
+			wantErr: false,
 		},
 		{
 			name:                   "discover depth + only .cshd",
 			discoverHashFilesDepth: 1,
 			filterDeleted:          false,
-			hashFilesMatcher:       mustMatcher(t, func() (Matcher, error) {
+			hashFilesMatcher: mustMatcher(t, func() (Matcher, error) {
 				return NewMatcher(WithAllow("**/*.cshd"))
 			}),
-			testFiles:              []testFile{
+			testFiles: []testFile{
 				{
 					relativePath: "file.cshd",
 					mtime:        time.Unix(100, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 33779,2233,md5,abababab foo/bar/file.bin
 3500.25,888,sha256,5577 foo/data/vid.mp4
@@ -286,7 +286,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "file.md5",
 					mtime:        time.Unix(200, 0),
-					contents:     []byte(`5577 foo/data/vid.mp4
+					contents: []byte(`5577 foo/data/vid.mp4
 1111 empty.dat
 3344 root.txt
 6666 tiny.flag
@@ -296,7 +296,7 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "foo/file.cshd",
 					mtime:        time.Unix(300, 0),
-					contents:     []byte(`# version 1
+					contents: []byte(`# version 1
 1133779,112233,md5,abababab bar/file.bin
 112500.25,11777,sha256,5555 data/blob.bin
 113500.25,11888,sha256,5577 data/vid.mp4
@@ -305,12 +305,12 @@ func TestBuildMostCurrent(t *testing.T) {
 				{
 					relativePath: "nested/dir/file.sha256",
 					mtime:        time.Unix(400, 0),
-					contents:     []byte(`2222 a.txt
+					contents: []byte(`2222 a.txt
 8877 sub/deep.bin
 `),
 				},
 			},
-			expectedSerialization:  `# version 1
+			expectedSerialization: `# version 1
 1337.00133,42069,sha512,deadbeef abc.txt
 15999.5,,sha256,1111 empty.dat
 1133779,112233,md5,abababab foo/bar/file.bin
@@ -320,7 +320,7 @@ func TestBuildMostCurrent(t *testing.T) {
 6666.6,4096,sha256,9999 nested/dir/sub/foo.doc
 10000,64,md5,3333 root.txt
 `,
-			wantErr:                false,
+			wantErr: false,
 		},
 	}
 
