@@ -24,7 +24,7 @@ func assertErr(t *testing.T, err error) {
 func assertEqual[T comparable](t *testing.T, got, want T) {
 	t.Helper()
 	if got != want {
-		t.Fatalf("got '%v'\nwant '%v'", got, want)
+		t.Fatalf("\ngot '%v'\nwant '%v'", got, want)
 	}
 }
 

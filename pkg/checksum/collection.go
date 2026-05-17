@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+type VerifyStage int
+
+const (
+	VerifyPre VerifyStage = iota
+	VerifyDuring
+	VerifyPost
+)
+
 var ErrFileExists = errors.New("file already exists")
 var ErrMissingRootInMerge = errors.New("must have a root to supoort merging")
 var ErrMergePardirBlocked = errors.New(
@@ -214,4 +222,123 @@ func (c *HashCollection) Merge(other *HashCollection) error {
 	}
 
 	return nil
+}
+
+type VerifyProgressCommon struct {
+	TreeRoot            string
+	RelativePath        string
+	FileNumberProcessed uint64
+	FileNumberTotal     uint64
+	SizeProcessedBytes  uint64
+	SizeTotalBytes      uint64
+}
+
+type VerifyProgress struct {
+	Stage VerifyStage
+
+	Common VerifyProgressCommon
+
+	// Only used in During
+	Done  uint64
+	Total uint64
+
+	// Only used in Post
+	Result VerifyResult
+}
+
+func (c *HashCollection) SizeTotalBytes() int64 {
+	total := int64(0)
+	for _, f := range c.pathToFile {
+		total += f.size
+	}
+
+	return total
+}
+
+// NOTE: needed to get deterministic iteration order for tests so
+//
+//	this variable will be overwritten during testing
+var iterateMap func(map[string]*File, func(path string, file *File) error) error = defaultIterMap
+var errStopIteration = errors.New("stop iteration")
+
+func defaultIterMap(m map[string]*File, fn func(path string, file *File) error) error {
+	for path, file := range m {
+		err := fn(path, file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
+	filesTotal := len(c.pathToFile)
+	filesProcessed := 0
+	sizeProcessedBytes := uint64(0)
+	sizeTotalBytes := c.SizeTotalBytes()
+
+	err := iterateMap(c.pathToFile, func(path string, file *File) error {
+		relativePath, err := filepath.Rel(c.root, path)
+		if err != nil {
+			return fmt.Errorf("failed to build relative path for file: %w", err)
+		}
+
+		common := VerifyProgressCommon{
+			TreeRoot:            c.root,
+			RelativePath:        relativePath,
+			FileNumberProcessed: uint64(filesProcessed),
+			FileNumberTotal:     uint64(filesTotal),
+			SizeProcessedBytes:  sizeProcessedBytes,
+			SizeTotalBytes:      uint64(sizeTotalBytes),
+		}
+		if !progress(VerifyProgress{
+			Stage:  VerifyPre,
+			Common: common,
+		}) {
+			return errStopIteration
+		}
+
+		result, err := file.Verify(func(done, total uint64) {
+			progress(
+				VerifyProgress{
+					Stage:  VerifyDuring,
+					Common: common,
+					Done:   done,
+					Total:  total,
+				},
+			)
+		})
+
+		// NOTE: Verify returns the error when result is VerifyFileMissing
+		//       We ignore it if the file actually doesn't exist and
+		//       only error on permission problems etc.
+		if err != nil && result != VerifyFileMissing && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf(
+				"failed to verify file at '%q': %w", file.path, err)
+		}
+
+		filesProcessed += 1
+		common.FileNumberProcessed = uint64(filesProcessed)
+		sizeProcessedBytes += uint64(file.size)
+		common.SizeProcessedBytes = sizeProcessedBytes
+
+		if !progress(
+			VerifyProgress{
+				Stage:  VerifyPost,
+				Common: common,
+				Result: result,
+			},
+		) {
+			return errStopIteration
+		}
+
+		return nil
+	})
+
+	if err == errStopIteration {
+		return nil
+	}
+
+	return err
 }

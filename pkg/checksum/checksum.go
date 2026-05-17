@@ -150,9 +150,10 @@ func (c *Checker) ClearMostCurrent() {
 //     Path passed to it in verification. The path is relative
 //     to the `file_tree.root()`.
 //   - `progress`: Progress callback that receives a [`VerifyProgress`]
-//     before and after processing the file.
-func (c *Checker) Verify(progress func()) {
-	panic("Not implemented! TODO")
+//     before, during and after processing the file.
+//     Returning false from it stops iteration.
+func (c *Checker) Verify(collection *HashCollection, progress func(VerifyProgress) bool) error {
+	return collection.Verify(progress)
 }
 
 // Verify all found checksum files found in the [`ChecksumHelper::root`].
