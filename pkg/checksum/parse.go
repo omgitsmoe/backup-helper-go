@@ -20,7 +20,7 @@ func Parse(collectionPath string, r io.Reader) (*HashCollection, error) {
 	scanner := bufio.NewScanner(r)
 
 	seenHeader := false
-	hc := NewHashCollection(collectionPath)
+	hc := newHashCollection(collectionPath)
 	collectionRoot := hc.Root()
 	var version int
 	for scanner.Scan() {

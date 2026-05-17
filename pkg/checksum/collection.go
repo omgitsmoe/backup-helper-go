@@ -21,7 +21,11 @@ type HashCollection struct {
 	pathToFile map[string]*File
 }
 
-func NewHashCollection(path string) *HashCollection {
+func newHashCollection(path string) *HashCollection {
+	if !filepath.IsAbs(path) {
+		panic("a HashCollection's path must be absolute, got: " + path)
+	}
+
 	clean := filepath.Clean(path)
 	// NOTE: these return '.' on empty path
 	// TODO only allow absolute paths?
@@ -34,7 +38,11 @@ func NewHashCollection(path string) *HashCollection {
 	}
 }
 
-func NewHashCollectionFromDisk(path string) (*HashCollection, error) {
+func newHashCollectionFromDisk(path string) (*HashCollection, error) {
+	if !filepath.IsAbs(path) {
+		panic("a HashCollection's path must be absolute, got: " + path)
+	}
+
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat file at '%q': %w", path, err)

@@ -11,7 +11,7 @@ import (
 func ParseSingle(collectionPath string, hashType Hash, r io.Reader) (*HashCollection, error) {
 	scanner := bufio.NewScanner(r)
 
-	hc := NewHashCollection(collectionPath)
+	hc := newHashCollection(collectionPath)
 	collectionRoot := hc.Root()
 	for scanner.Scan() {
 		line := scanner.Text()

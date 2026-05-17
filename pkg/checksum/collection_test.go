@@ -10,15 +10,24 @@ import (
 )
 
 func TestPathMissingRootOrName(t *testing.T) {
-	tests := []string{
-		"",
-		"root/",
-		"file.txt",
+	tests := []struct {
+		root string
+		name string
+	}{
+		{root: "", name: ""},
+		{root: ".", name: ""},
+		{root: "", name: ""},
+		{root: "", name: "."},
+		{root: "root/", name: ""},
+		{root: ".", name: "file.txt"},
 	}
 
-	for _, root := range tests {
-		t.Run(root, func(t *testing.T) {
-			c := NewHashCollection(root)
+	for _, tt := range tests {
+		t.Run(filepath.Join(tt.root, tt.name), func(t *testing.T) {
+			c := HashCollection{
+				root: tt.root,
+				name: tt.name,
+			}
 
 			p, err := c.Path()
 
@@ -32,8 +41,8 @@ func TestPathMissingRootOrName(t *testing.T) {
 }
 
 func TestPath(t *testing.T) {
-	expected := filepath.Join("foo", "bar", "baz.txt")
-	c := NewHashCollection(expected)
+	expected := makeAbsOrFail(t, filepath.Join("foo", "bar", "baz.txt"))
+	c := newHashCollection(expected)
 
 	actual, err := c.Path()
 	assertNoErr(t, err)
@@ -44,8 +53,8 @@ func TestPath(t *testing.T) {
 }
 
 func TestNewHashCollectionNormalizesPath(t *testing.T) {
-	expected := filepath.Join("foo", "bar", "baz.txt")
-	c := NewHashCollection("foo///./bar//../bar/baz.txt")
+	expected := makeAbsOrFail(t, filepath.Join("foo", "bar", "baz.txt"))
+	c := newHashCollection(makeAbsOrFail(t, "foo///./bar//../bar/baz.txt"))
 
 	actual, err := c.Path()
 	assertNoErr(t, err)
@@ -55,20 +64,50 @@ func TestNewHashCollectionNormalizesPath(t *testing.T) {
 	}
 }
 
+func TestNewHashCollectionPanicsOnRelativePath(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic, but did not panic")
+		}
+	}()
+
+	newHashCollection(filepath.Join("relative", "path")) // should panic
+}
+
+func TestNewHashCollectionFromDiskPanicsOnRelativePath(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic, but did not panic")
+		}
+	}()
+
+	newHashCollectionFromDisk(filepath.Join("relative", "path")) // should panic
+}
+
 func TestUpdateMtimePathError(t *testing.T) {
-	tests := []string{
-		"",
-		"root/",
-		"file.txt",
-		"this/path/does/not/exist123/surely.txt",
+	tests := []struct {
+		root string
+		name string
+	}{
+		{root: "", name: ""},
+		{root: ".", name: ""},
+		{root: "", name: ""},
+		{root: "", name: "."},
+		{root: "root/", name: ""},
+		{root: ".", name: "file.txt"},
+		{root: "this/path/does/not/exist123", name: "surely.txt"},
 	}
 
-	for _, path := range tests {
-		t.Run(path, func(t *testing.T) {
-			c := NewHashCollection(path)
+	for _, tt := range tests {
+		t.Run(filepath.Join(tt.root, tt.name), func(t *testing.T) {
+			c := HashCollection{
+				root: tt.root,
+				name: tt.name,
+			}
 			expected := time.Unix(1337, 0)
 			c.mtime = expected
 
+			println(c.root, c.name)
 			err := c.UpdateMtime()
 
 			assertErr(t, err)
@@ -84,7 +123,7 @@ func TestUpdateMtime(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	c := NewHashCollection(path)
+	c := newHashCollection(path)
 	err := c.UpdateMtime()
 
 	assertNoErr(t, err)
@@ -190,7 +229,7 @@ func TestNewHashCollectionFromDisk(t *testing.T) {
 				}
 			}
 
-			hc, err := NewHashCollectionFromDisk(tt.path)
+			hc, err := newHashCollectionFromDisk(tt.path)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

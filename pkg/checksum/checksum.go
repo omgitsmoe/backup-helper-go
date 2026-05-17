@@ -8,8 +8,9 @@ import (
 )
 
 type Checker struct {
-	root    string
-	options Options
+	root        string
+	options     Options
+	mostCurrent *HashCollection
 }
 
 type Options struct {
@@ -68,11 +69,28 @@ func DefaultOptions() Options {
 	}
 }
 
-func NewChecker(root string) Checker {
+func NewChecker(root string) (Checker, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return Checker{}, fmt.Errorf("failed to make root absolute: %w", err)
+	}
+
 	return Checker{
 		root:    root,
 		options: DefaultOptions(),
+	}, nil
+}
+
+func NewCheckerWithOptions(root string, options Options) (Checker, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return Checker{}, fmt.Errorf("failed to make root absolute: %w", err)
 	}
+
+	return Checker{
+		root:    root,
+		options: options,
+	}, nil
 }
 
 func (c *Checker) Incremental(progress func()) {
@@ -107,8 +125,23 @@ func (c *Checker) CheckMissing(progress func()) {
 //     when progress is made.
 //   - `action`: Closure that receives a reference to most current
 //     [`HashCollection`].
-func (c *Checker) BuildMostCurrent(progress func()) {
-	panic("Not implemented! TODO")
+func (c *Checker) BuildMostCurrent(progress func()) (*HashCollection, error) {
+	if c.mostCurrent != nil {
+		return c.mostCurrent, nil
+	}
+
+	mostCurrent, err := buildMostCurrent(c.root, &c.options, progress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build most current hash file: %w", err)
+	}
+
+	c.mostCurrent = mostCurrent
+
+	return mostCurrent, nil
+}
+
+func (c *Checker) ClearMostCurrent() {
+	c.mostCurrent = nil
 }
 
 // Verify all files matching predicated `include` in the [`HashCollection`]

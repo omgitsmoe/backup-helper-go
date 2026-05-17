@@ -157,3 +157,12 @@ func assertHashCollectionsEqual(t *testing.T, got *HashCollection, want *HashCol
 		assertSliceEqual(t, actualFile.hash, expectedFile.hash)
 	}
 }
+
+func makeAbsOrFail(t *testing.T, path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatalf("failed to make path absolute: %s", err)
+	}
+
+	return abs
+}

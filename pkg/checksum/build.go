@@ -21,10 +21,10 @@ func buildMostCurrent(root string, options *Options, progress func()) (*HashColl
 	}
 
 	filename := defaultHashFileName(root, "most_current", "most_current_")
-	mostCurrent := NewHashCollection(filepath.Join(root, filename))
+	mostCurrent := newHashCollection(filepath.Join(root, filename))
 
 	for _, pathWithMTime := range hashFilesSorted {
-		hashFile, err := NewHashCollectionFromDisk(pathWithMTime.Path)
+		hashFile, err := newHashCollectionFromDisk(pathWithMTime.Path)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"failed to read hash file at '%q': %w", pathWithMTime.Path, err)
