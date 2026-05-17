@@ -40,14 +40,17 @@ func buildMostCurrent(root string, options *Options, progress func()) (*HashColl
 
 	if options.MostCurrentFilterDeleted {
 		toDelete := []string{}
-		for p := range mostCurrent.pathToFile {
-			if _, err := os.Stat(p); os.IsNotExist(err) {
-				toDelete = append(toDelete, p)
+
+		mostCurrent.ForEach(func(path string, _ *File) bool {
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				toDelete = append(toDelete, path)
 			}
-		}
+
+			return true
+		})
 
 		for _, p := range toDelete {
-			delete(mostCurrent.pathToFile, p)
+			mostCurrent.Delete(p)
 		}
 	}
 

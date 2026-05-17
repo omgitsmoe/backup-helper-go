@@ -142,6 +142,10 @@ func (c *HashCollection) Insert(file *File) error {
 	return nil
 }
 
+func (c *HashCollection) Delete(path string) {
+	delete(c.pathToFile, path)
+}
+
 func (c *HashCollection) ForEach(fn func(path string, file *File) bool) {
 	for p, f := range c.pathToFile {
 		if !fn(p, f) {

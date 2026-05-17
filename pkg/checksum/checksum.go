@@ -33,7 +33,7 @@ type Options struct {
 	// current state of hashes.
 	// Zero means only files in the root directory will be considered.
 	// One means at most one subdirectory will be allowed.
-	// None means no depth limit.
+	// `-1` means no depth limit.
 	DiscoverHashFilesDepth int
 
 	// Whether the most_current hash file should filter out all files that are
