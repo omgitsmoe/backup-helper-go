@@ -41,7 +41,7 @@ func measure(name string, fn func()) {
 func main() {
 	args := os.Args[1:]
 	root := args[0]
-	_ = root
+	path := args[1]
 
 	options := checksum.DefaultOptions()
 	checker, err := checksum.NewCheckerWithOptions(root, options)
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// buildMostCurrent(&checker)
-	verify(&checker)
+	verify(&checker, path)
 }
 
 func buildMostCurrent(checker *checksum.Checker) {
@@ -82,16 +82,16 @@ func buildMostCurrent(checker *checksum.Checker) {
 	}
 }
 
-func verify(checker *checksum.Checker) {
-	mostCurrent, err := checker.BuildMostCurrent(nil)
+func verify(checker *checksum.Checker, path string) {
+	collection, err := checker.Read(path)
 	if err != nil {
-		fmt.Printf("buildMostCurrent failed: %s\n", err)
+		fmt.Printf("Failed to read collection: %s\n", err)
 		os.Exit(1)
 	}
 
 	var currentFile string
 
-	err = checker.Verify(mostCurrent, func(p checksum.VerifyProgress) bool {
+	err = checker.Verify(collection, func(p checksum.VerifyProgress) bool {
 		switch p.Stage {
 
 		case checksum.VerifyPre:

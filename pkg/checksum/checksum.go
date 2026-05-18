@@ -144,6 +144,20 @@ func (c *Checker) ClearMostCurrent() {
 	c.mostCurrent = nil
 }
 
+func (c *Checker) Read(path string) (*HashCollection, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make absolute path: %w", err)
+	}
+
+	collection, err := newHashCollectionFromDisk(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return collection, nil
+}
+
 // Verify all files matching predicated `include` in the [`HashCollection`]
 //
 //   - `include`: Predicate function which determines whether to include the
