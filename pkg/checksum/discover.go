@@ -64,7 +64,7 @@ func discoverHashFiles(root string, options *Options, progress func()) ([]string
 			}
 		}
 
-		if isHashFile(path) {
+		if !d.IsDir() && isHashFile(path) {
 			hashFiles = append(hashFiles, path)
 		}
 
