@@ -93,8 +93,14 @@ func NewCheckerWithOptions(root string, options Options) (Checker, error) {
 	}, nil
 }
 
-func (c *Checker) Incremental(progress func()) {
-	panic("Not implemented! TODO")
+func (c *Checker) Incremental(progress func()) (*HashCollection, error) {
+	mostCurrent, err := c.BuildMostCurrent(progress)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to build most current for incremental generation: %w", err)
+	}
+
+	return incremental(c.root, mostCurrent, &c.options, progress)
 }
 
 // Generate a [`HashCollection`], which only contains the hashes of

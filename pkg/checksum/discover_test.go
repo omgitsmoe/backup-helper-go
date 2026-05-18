@@ -351,6 +351,25 @@ func TestDiscoverHashFiles(t *testing.T) {
 	}
 }
 
+func TestDiscoverHashFilesOnlyFiles(t *testing.T) {
+	testdir := t.TempDir()
+	createFilesFromList(t, testdir, []string{
+		"bar.cshd/foo.txt",
+		"foo/bar/most_current_2025-10-23.sha512",
+		"xer.sha512/baz.md5/vid.mp4",
+	})
+
+	opt := DefaultOptions()
+	paths, err := discoverHashFiles(testdir, &opt, nil)
+	assertNoErr(t, err)
+
+	expectedPathsNormalized := normalizeRelativeTestingPath(
+		t, testdir, []string{
+			"foo/bar/most_current_2025-10-23.sha512",
+		})
+	assertSliceEqual(t, paths, expectedPathsNormalized)
+}
+
 func TestDirectoryDepth(t *testing.T) {
 	tests := []struct {
 		base     string
@@ -386,4 +405,148 @@ func TestDirectoryDepth(t *testing.T) {
 
 		assertEqual(t, depth, tt.expected)
 	}
+}
+
+func TestDiscoverFiles(t *testing.T) {
+	testdir := t.TempDir()
+	createFilesFromList(t, testdir, []string{
+		"baz/xer/file.txt",
+		"baz/xer/omg.docx",
+		"baz/xer/xer_bh_2026-01-13.cshd",
+		"check.sha3_256",
+		"file.txt",
+		"foo/2026-05-14.md5",
+		"foo/bar/ex.sha512.bin",
+		"foo/bar/file.txt",
+		"foo/bar/most_current_2025-10-23.sha512",
+		"foo/test.md",
+		"foo/vid.mp4",
+		"foo.cshd",
+	})
+
+	tests := []struct {
+		name          string
+		matcher       Matcher
+		expectedPaths []string
+	}{
+		{
+			name:    "all files",
+			matcher: Matcher{},
+			expectedPaths: []string{
+				"baz/xer/file.txt",
+				"baz/xer/omg.docx",
+				"baz/xer/xer_bh_2026-01-13.cshd",
+				"check.sha3_256",
+				"file.txt",
+				"foo/2026-05-14.md5",
+				"foo/bar/ex.sha512.bin",
+				"foo/bar/file.txt",
+				"foo/bar/most_current_2025-10-23.sha512",
+				"foo/test.md",
+				"foo/vid.mp4",
+				"foo.cshd",
+			},
+		},
+		{
+			name: "all files explicit",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(WithAllow("**/*"))
+			}),
+			expectedPaths: []string{
+				"baz/xer/file.txt",
+				"baz/xer/omg.docx",
+				"baz/xer/xer_bh_2026-01-13.cshd",
+				"check.sha3_256",
+				"file.txt",
+				"foo/2026-05-14.md5",
+				"foo/bar/ex.sha512.bin",
+				"foo/bar/file.txt",
+				"foo/bar/most_current_2025-10-23.sha512",
+				"foo/test.md",
+				"foo/vid.mp4",
+				"foo.cshd",
+			},
+		},
+		{
+			name: "only *.txt",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(WithAllow("*.txt"))
+			}),
+			expectedPaths: []string{
+				"file.txt",
+			},
+		},
+		{
+			name: "all *.txt files",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(WithAllow("**/*.txt"))
+			}),
+			expectedPaths: []string{
+				"baz/xer/file.txt",
+				"file.txt",
+				"foo/bar/file.txt",
+			},
+		},
+		{
+			name: "all *.txt files, except foo/",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(
+					WithAllow("**/*.txt"),
+					WithBlock("foo/"),
+				)
+			}),
+			expectedPaths: []string{
+				"baz/xer/file.txt",
+				"file.txt",
+			},
+		},
+		{
+			name: "only baz/xer/ except *.txt",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(
+					WithAllow("baz/xer/**/*"),
+					WithBlock("**/*.txt"),
+				)
+			}),
+			expectedPaths: []string{
+				"baz/xer/omg.docx",
+				"baz/xer/xer_bh_2026-01-13.cshd",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := DefaultOptions()
+			options.AllFilesMatcher = tt.matcher
+
+			paths, err := discoverFiles(testdir, &options, nil)
+			assertNoErr(t, err)
+
+			expectedPathsNormalized := normalizeRelativeTestingPath(
+				t, testdir, tt.expectedPaths)
+			assertSliceEqual(t, paths, expectedPathsNormalized)
+		})
+	}
+}
+
+func TestDiscoverFilesOnlyFiles(t *testing.T) {
+	testdir := t.TempDir()
+	createFilesFromList(t, testdir, []string{
+		"bar.bin/foo.txt",
+		"foo/bar/most_current_2025-10-23.sha512",
+		"xer.sha512/baz.doc/vid.mp4",
+	})
+
+	opt := DefaultOptions()
+	paths, err := discoverFiles(testdir, &opt, nil)
+	assertNoErr(t, err)
+
+	expectedPathsNormalized := normalizeRelativeTestingPath(
+		t, testdir, []string{
+			"bar.bin/foo.txt",
+			"foo/bar/most_current_2025-10-23.sha512",
+			"xer.sha512/baz.doc/vid.mp4",
+		})
+	assertSliceEqual(t, paths, expectedPathsNormalized)
 }

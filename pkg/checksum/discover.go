@@ -119,3 +119,29 @@ func directoryDepth(base string, target string) (int, error) {
 	depth := strings.Count(rel, string(filepath.Separator)) + 1
 	return depth, nil
 }
+
+func discoverFiles(root string, options *Options, progress func()) ([]string, error) {
+	paths := []string{}
+	err := FilteredWalk(root, options.AllFilesMatcher, func(path string, d fs.DirEntry, err error) error {
+		if err == ErrFiltered {
+			// TODO progress
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() {
+			paths = append(paths, path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover files for hashing: %w", err)
+	}
+
+	return paths, nil
+}

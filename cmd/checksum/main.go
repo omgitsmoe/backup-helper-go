@@ -41,7 +41,7 @@ func measure(name string, fn func()) {
 func main() {
 	args := os.Args[1:]
 	root := args[0]
-	path := args[1]
+	// path := args[1]
 
 	options := checksum.DefaultOptions()
 	checker, err := checksum.NewCheckerWithOptions(root, options)
@@ -51,7 +51,8 @@ func main() {
 	}
 
 	// buildMostCurrent(&checker)
-	verify(&checker, path)
+	// verify(&checker, path)
+	incremental(&checker)
 }
 
 func buildMostCurrent(checker *checksum.Checker) {
@@ -165,6 +166,34 @@ func verify(checker *checksum.Checker, path string) {
 
 	if err != nil {
 		fmt.Printf("Verify failed: %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func incremental(checker *checksum.Checker) {
+	inc, err := checker.Incremental(nil)
+	if err != nil {
+		fmt.Printf("incremental failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	path, err := inc.Path()
+	if err != nil {
+		fmt.Printf("incremental failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		fmt.Printf("incremental failed to create file: %s\n", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	ser := checksum.NewSerializer(f)
+	err = ser.Flush(inc)
+	if err != nil {
+		fmt.Printf("incremental failed to write file: %s\n", err)
 		os.Exit(1)
 	}
 }

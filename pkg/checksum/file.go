@@ -74,6 +74,21 @@ func FileFromDisk(path string) (File, error) {
 	}, nil
 }
 
+func (f *File) Clone() *File {
+	if f == nil {
+		return nil
+	}
+
+	clone := *f
+
+	if f.hash != nil {
+		clone.hash = make([]byte, len(f.hash))
+		copy(clone.hash, f.hash)
+	}
+
+	return &clone
+}
+
 func (f *File) UpdateMetadata() error {
 	info, err := os.Stat(f.path)
 	if err != nil {
