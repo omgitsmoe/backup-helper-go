@@ -1,6 +1,7 @@
 package checksum
 
 import (
+	"os"
 	"runtime"
 	"testing"
 )
@@ -77,6 +78,34 @@ func TestMatcherPatternNormalization(t *testing.T) {
 			m.block[0],
 		)
 	}
+}
+
+func TestMatcherPatternTrailingSepRemoved(t *testing.T) {
+	allowPattern := "allowdir" + string(os.PathSeparator)
+	blockPattern := "blockdir" + string(os.PathSeparator)
+
+	m, err := NewMatcher(
+		WithAllow(allowPattern),
+		WithBlock(blockPattern),
+	)
+	assertNoErr(t, err)
+
+	expectedAllowPattern := "allowdir"
+	expectedBlockPattern := "blockdir"
+
+	assertEqual(t, len(m.allow), 1)
+	assertEqual(
+		t,
+		expectedAllowPattern,
+		m.allow[0],
+	)
+
+	assertEqual(t, len(m.block), 1)
+	assertEqual(
+		t,
+		expectedBlockPattern,
+		m.block[0],
+	)
 }
 
 func TestMatcherIsAllowed(t *testing.T) {

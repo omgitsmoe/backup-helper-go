@@ -273,6 +273,19 @@ func TestDiscoverHashFiles(t *testing.T) {
 			},
 		},
 		{
+			name: "only .cshd except baz/",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(
+					WithAllow("**/*.cshd"),
+					WithBlock("baz/"),
+				)
+			}),
+			discoverDepth: -1,
+			expectedPaths: []string{
+				"foo.cshd",
+			},
+		},
+		{
 			name: "only .cshd in root",
 			matcher: mustMatcher(t, func() (Matcher, error) {
 				return NewMatcher(WithAllow("**/*.cshd"))
@@ -292,6 +305,21 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"baz/xer/xer_bh_2026-01-13.cshd",
 				"check.sha3_256",
 				"foo/bar/most_current_2025-10-23.sha512",
+				"foo.cshd",
+			},
+		},
+		{
+			name: "no .md5 and no foo/",
+			matcher: mustMatcher(t, func() (Matcher, error) {
+				return NewMatcher(
+					WithBlock("**/*.md5"),
+					WithBlock("foo/"),
+				)
+			}),
+			discoverDepth: -1,
+			expectedPaths: []string{
+				"baz/xer/xer_bh_2026-01-13.cshd",
+				"check.sha3_256",
 				"foo.cshd",
 			},
 		},

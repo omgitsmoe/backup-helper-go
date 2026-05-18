@@ -17,6 +17,9 @@ type MatcherOption func(*Matcher) error
 func WithAllow(pattern string) MatcherOption {
 	// NOTE: convert to native separators so we also support '/' on windows
 	pattern = filepath.FromSlash(pattern)
+	// remove trailing slashes etc., otherwise `dir/` won't match a
+	// directory `dir`, which is unintuitive
+	pattern = filepath.Clean(pattern)
 	return func(m *Matcher) error {
 		if !doublestar.ValidatePathPattern(pattern) {
 			return fmt.Errorf("invalid allow pattern: %q", pattern)
@@ -29,6 +32,9 @@ func WithAllow(pattern string) MatcherOption {
 func WithBlock(pattern string) MatcherOption {
 	// NOTE: convert to native separators so we also support '/' on windows
 	pattern = filepath.FromSlash(pattern)
+	// remove trailing slashes etc., otherwise `dir/` won't match a
+	// directory `dir`, which is unintuitive
+	pattern = filepath.Clean(pattern)
 	return func(m *Matcher) error {
 		if !doublestar.ValidatePathPattern(pattern) {
 			return fmt.Errorf("invalid block pattern: %q", pattern)

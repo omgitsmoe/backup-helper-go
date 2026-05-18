@@ -122,6 +122,7 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 
 	for i := range expected {
 		if expected[i] != actual[i] {
+			t.Logf("\nwant %v\n vs\ngot %v", expected, actual)
 			t.Fatalf("at index %d: expected %v, got %v", i, expected[i], actual[i])
 		}
 	}
