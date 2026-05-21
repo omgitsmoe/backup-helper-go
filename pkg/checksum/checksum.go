@@ -172,8 +172,12 @@ func (c *Checker) Read(path string) (*HashCollection, error) {
 //   - `progress`: Progress callback that receives a [`VerifyProgress`]
 //     before, during and after processing the file.
 //     Returning false from it stops iteration.
-func (c *Checker) Verify(collection *HashCollection, progress func(VerifyProgress) bool) error {
-	return collection.Verify(progress)
+func (c *Checker) Verify(
+	collection *HashCollection,
+	include func(path string) bool,
+	progress func(VerifyProgress) bool,
+) error {
+	return collection.Verify(include, progress)
 }
 
 // Verify all found checksum files found in the [`ChecksumHelper::root`].
@@ -187,7 +191,7 @@ func (c *Checker) Verify(collection *HashCollection, progress func(VerifyProgres
 //   - `progress`: Progress callback that receives a [`VerifyRootProgress`]
 //     when building the most current checksum file
 //     and on verification progress.
-func (c *Checker) VerifyRoot(progress func()) {
+func (c *Checker) VerifyRoot(include func(path string) bool, progress func()) {
 	panic("Not implemented! TODO")
 }
 

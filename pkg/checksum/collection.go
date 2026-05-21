@@ -272,7 +272,7 @@ func defaultIterMap(m map[string]*File, fn func(path string, file *File) error) 
 	return nil
 }
 
-func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
+func (c *HashCollection) Verify(include func(path string) bool, progress func(VerifyProgress) bool) error {
 	filesTotal := len(c.pathToFile)
 	filesProcessed := 0
 	sizeProcessedBytes := uint64(0)
@@ -284,6 +284,12 @@ func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
 			return fmt.Errorf("failed to build relative path for file: %w", err)
 		}
 
+		if include != nil && !include(relativePath) {
+			filesProcessed += 1
+			sizeProcessedBytes += uint64(file.size)
+			return nil
+		}
+
 		common := VerifyProgressCommon{
 			TreeRoot:            c.root,
 			RelativePath:        relativePath,
@@ -292,7 +298,7 @@ func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
 			SizeProcessedBytes:  sizeProcessedBytes,
 			SizeTotalBytes:      uint64(sizeTotalBytes),
 		}
-		if !progress(VerifyProgress{
+		if progress != nil && !progress(VerifyProgress{
 			Stage:  VerifyPre,
 			Common: common,
 		}) {
@@ -300,14 +306,16 @@ func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
 		}
 
 		result, err := file.Verify(func(done, total uint64) {
-			progress(
-				VerifyProgress{
-					Stage:  VerifyDuring,
-					Common: common,
-					Done:   done,
-					Total:  total,
-				},
-			)
+			if progress != nil {
+				progress(
+					VerifyProgress{
+						Stage:  VerifyDuring,
+						Common: common,
+						Done:   done,
+						Total:  total,
+					},
+				)
+			}
 		})
 
 		// NOTE: Verify returns the error when result is VerifyFileMissing
@@ -323,7 +331,7 @@ func (c *HashCollection) Verify(progress func(VerifyProgress) bool) error {
 		sizeProcessedBytes += uint64(file.size)
 		common.SizeProcessedBytes = sizeProcessedBytes
 
-		if !progress(
+		if progress != nil && !progress(
 			VerifyProgress{
 				Stage:  VerifyPost,
 				Common: common,

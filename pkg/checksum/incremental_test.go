@@ -45,7 +45,6 @@ func TestIncremental(t *testing.T) {
 			expectedSerialization: ``,
 			wantErr:               false,
 		},
-		// TODO mb add some more cases using this "complex file setup"
 		{
 			name:             "all",
 			skipUnchanged:    false,
@@ -105,6 +104,76 @@ func TestIncremental(t *testing.T) {
 300,16,md5,e52e909b8f3a42f43244843ec29e15da foo/bar/file.bin
 400,15,md5,87ae905d8f1fe92704f8e41cac4b81e2 foo/bar/vid.mp4
 500,16,md5,2f95b10ff8bbc6367edd718cc8eba062 nested/dir/a.txt
+600,22,md5,b05ea47eeb9a9aa7a6a7c751ed34bccc nested/dir/sub/foo.doc
+`,
+			wantErr: false,
+		},
+		{
+			name:             "mixed unchanged / skipped / changed / new",
+			skipUnchanged:    true,
+			includeUnchanged: false,
+			hashType:         Hash{crypto.MD5},
+			mostCurrent: func(root string) *HashCollection {
+				return &HashCollection{
+					root: root,
+					name: "most_current.cshd",
+					pathToFile: map[string]*File{
+						// unchanged content, but mtime differs -> hash is recomputed,
+						// includeUnchanged=false => dropped
+						filepath.Join(root, "abc.txt"): {
+							path:     filepath.Join(root, "abc.txt"),
+							mtime:    time.Unix(100, 0),
+							size:     7,
+							hashType: Hash{crypto.MD5},
+							hash:     []byte{0x56, 0xb6, 0xf0, 0x9c, 0x50, 0xbf, 0xb4, 0x70, 0x65, 0x63, 0xcd, 0xf3, 0x46, 0x3a, 0x6c, 0xc3},
+						},
+
+						// same mtime -> skipUnchanged clones previous without hashing
+						filepath.Join(root, "file.txt"): {
+							path:     filepath.Join(root, "file.txt"),
+							mtime:    time.Unix(100, 0),
+							size:     8,
+							hashType: Hash{crypto.MD5},
+							hash:     []byte{0x3d, 0x8e, 0x57, 0x7b, 0xdd, 0xb1, 0x7d, 0xb3, 0x39, 0xea, 0xe0, 0xb3, 0xd9, 0xbc, 0xf1, 0x80},
+						},
+
+						// changed content -> hash differs -> included
+						filepath.Join(root, "foo", "bar", "vid.mp4"): {
+							path:     filepath.Join(root, "foo", "bar", "vid.mp4"),
+							mtime:    time.Unix(400, 0),
+							size:     15,
+							hashType: Hash{crypto.MD5},
+							hash:     []byte{0x87, 0xae, 0x90, 0x5d, 0x8f, 0x1f, 0xe9, 0x27, 0x04, 0xf8, 0xe4, 0x1c, 0xac, 0x4b, 0x81, 0xe2},
+						},
+					},
+				}
+			},
+			allFilesMatcher: Matcher{},
+			testFiles: []testFile{
+				{
+					relativePath: "abc.txt",
+					mtime:        time.Unix(101, 0),
+					contents:     []byte("abc.txt"), // same hash as previous
+				},
+				{
+					relativePath: "file.txt",
+					mtime:        time.Unix(100, 0), // same mtime -> skip hashing, reuse previous
+					contents:     []byte("file.txt changed"),
+				},
+				{
+					relativePath: filepath.Join("foo", "bar", "vid.mp4"),
+					mtime:        time.Unix(401, 0),
+					contents:     []byte("foo/bar/vid.mp4 changed"), // different hash
+				},
+				{
+					relativePath: filepath.Join("nested", "dir", "sub", "foo.doc"),
+					mtime:        time.Unix(600, 0),
+					contents:     []byte("nested/dir/sub/foo.doc"), // new file
+				},
+			},
+			expectedSerialization: `# version 1
+100,8,md5,3d8e577bddb17db339eae0b3d9bcf180 file.txt
+401,23,md5,8785a5fc676e75cd98062644c8ecd2ec foo/bar/vid.mp4
 600,22,md5,b05ea47eeb9a9aa7a6a7c751ed34bccc nested/dir/sub/foo.doc
 `,
 			wantErr: false,

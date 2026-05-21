@@ -698,6 +698,7 @@ func TestCollectionVerify(t *testing.T) {
 	tests := []struct {
 		name             string
 		collection       *HashCollection
+		include          func(path string) bool
 		expectedProgress []VerifyProgress
 		wantErr          bool
 	}{
@@ -1150,7 +1151,7 @@ func TestCollectionVerify(t *testing.T) {
 				name:  "mixed.cshd",
 				mtime: time.Time{},
 				pathToFile: map[string]*File{
-					// 1. FILE MISSING (not on disk)
+					// 4. FILE MISSING (not on disk)
 					filepath.Join(root, "missing.txt"): {
 						path:     filepath.Join(root, "missing.txt"),
 						mtime:    time.Time{},
@@ -1177,7 +1178,7 @@ func TestCollectionVerify(t *testing.T) {
 						hash:     []byte{0xbb},
 					},
 
-					// 4. OUTDATED HASH vs DISK MTIME (disk is newer)
+					// 1. OUTDATED HASH vs DISK MTIME (disk is newer)
 					filepath.Join(root, "baz", "omg.doc"): {
 						path:     filepath.Join(root, "baz", "omg.doc"),
 						mtime:    time.Unix(1, 0), // older than disk (mtime=300)
@@ -1365,15 +1366,133 @@ func TestCollectionVerify(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "include func",
+			include: func(path string) bool {
+				if path == "file.txt" {
+					return true
+				}
+
+				return false
+			},
+			collection: &HashCollection{
+				root:  root,
+				name:  "mixed.cshd",
+				mtime: time.Time{},
+				pathToFile: map[string]*File{
+					// 4. FILE MISSING (not on disk)
+					filepath.Join(root, "missing.txt"): {
+						path:     filepath.Join(root, "missing.txt"),
+						mtime:    time.Time{},
+						size:     10,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xaa},
+					},
+
+					// 2. MISMATCH CORRUPTED (content differs)
+					filepath.Join(root, "file.txt"): {
+						path:     filepath.Join(root, "file.txt"),
+						mtime:    time.Unix(100, 0),
+						size:     8,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xff, 0xff, 0xff, 0xff}, // wrong hash
+					},
+
+					// 3. MISMATCH SIZE
+					filepath.Join(root, "foo", "bar", "vid.mp4"): {
+						path:     filepath.Join(root, "foo", "bar", "vid.mp4"),
+						mtime:    time.Unix(200, 0),
+						size:     9999, // wrong size
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xbb},
+					},
+
+					// 1. OUTDATED HASH vs DISK MTIME (disk is newer)
+					filepath.Join(root, "baz", "omg.doc"): {
+						path:     filepath.Join(root, "baz", "omg.doc"),
+						mtime:    time.Unix(1, 0), // older than disk (mtime=300)
+						size:     11,
+						hashType: Hash{crypto.MD5},
+						hash: []byte{
+							0x3d, 0x8e, 0x57, 0x7b, 0xdd, 0xb1, 0x7d, 0xb3,
+						},
+					},
+				},
+			},
+			expectedProgress: []VerifyProgress{
+				// 1. MISMATCH OUTDATED
+				// skipped
+				// 2. MISMATCH CORRUPTED
+				{
+					Stage: VerifyPre,
+					Common: VerifyProgressCommon{
+						TreeRoot:            root,
+						RelativePath:        filepath.Join("file.txt"),
+						FileNumberProcessed: 1,
+						FileNumberTotal:     4,
+						SizeProcessedBytes:  11,
+						SizeTotalBytes:      10028,
+					},
+					Done:   0,
+					Total:  0,
+					Result: 0,
+				},
+				{
+					Stage: VerifyDuring,
+					Common: VerifyProgressCommon{
+						TreeRoot:            root,
+						RelativePath:        filepath.Join("file.txt"),
+						FileNumberProcessed: 1,
+						FileNumberTotal:     4,
+						SizeProcessedBytes:  11,
+						SizeTotalBytes:      10028,
+					},
+					Done:   8,
+					Total:  8,
+					Result: 0,
+				},
+				{
+					Stage: VerifyDuring,
+					Common: VerifyProgressCommon{
+						TreeRoot:            root,
+						RelativePath:        filepath.Join("file.txt"),
+						FileNumberProcessed: 1,
+						FileNumberTotal:     4,
+						SizeProcessedBytes:  11,
+						SizeTotalBytes:      10028,
+					},
+					Done:   8,
+					Total:  8,
+					Result: 0,
+				},
+				{
+					Stage: VerifyPost,
+					Common: VerifyProgressCommon{
+						TreeRoot:            root,
+						RelativePath:        filepath.Join("file.txt"),
+						FileNumberProcessed: 2,
+						FileNumberTotal:     4,
+						SizeProcessedBytes:  19,
+						SizeTotalBytes:      10028,
+					},
+					Done:   0,
+					Total:  0,
+					Result: VerifyMismatchCorrupted,
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			progressReceived := []VerifyProgress{}
-			err := tt.collection.Verify(func(p VerifyProgress) bool {
-				progressReceived = append(progressReceived, p)
-				return true
-			})
+			err := tt.collection.Verify(
+				tt.include,
+				func(p VerifyProgress) bool {
+					progressReceived = append(progressReceived, p)
+					return true
+				})
 
 			if tt.wantErr {
 				if err == nil {
@@ -1432,22 +1551,60 @@ func TestCollectionVerifyStopsOnProgressFuncFalse(t *testing.T) {
 
 	done := 0
 	progressReceived := []VerifyProgress{}
-	err := collection.Verify(func(p VerifyProgress) bool {
-		if p.Stage == VerifyPre {
-			done += 1
-		}
+	err := collection.Verify(
+		func(p string) bool { return true },
+		func(p VerifyProgress) bool {
+			if p.Stage == VerifyPre {
+				done += 1
+			}
 
-		continueVerify := true
-		if p.Stage == VerifyPost && done == 1 {
-			continueVerify = false
-		}
+			continueVerify := true
+			if p.Stage == VerifyPost && done == 1 {
+				continueVerify = false
+			}
 
-		progressReceived = append(progressReceived, p)
-		return continueVerify
-	})
+			progressReceived = append(progressReceived, p)
+			return continueVerify
+		})
 
 	assertNoErr(t, err)
 	// only 2 instead of 3, since no during due to file missing
 	assertEqual(t, len(progressReceived), 2)
 	assertEqual(t, done, 1)
+}
+
+func TestCollectionVerifyHandlesIncludeNil(t *testing.T) {
+	root := makeAbsOrFail(t, "foo")
+	collection := newHashCollection(filepath.Join(root, "bar"))
+	collection.pathToFile = map[string]*File{
+		filepath.Join(root, "foo", "bar.txt"): {
+			path:     filepath.Join(root, "foo", "bar.txt"),
+			mtime:    time.Unix(12345, 0),
+			size:     5678,
+			hashType: Hash{crypto.SHA512},
+			hash:     []byte{0xab, 0xab, 0xab, 0xab},
+		},
+	}
+
+	err := collection.Verify(nil, func(p VerifyProgress) bool { return true })
+
+	assertNoErr(t, err)
+}
+
+func TestCollectionVerifyHandlesProgressNil(t *testing.T) {
+	root := makeAbsOrFail(t, "foo")
+	collection := newHashCollection(filepath.Join(root, "bar"))
+	collection.pathToFile = map[string]*File{
+		filepath.Join(root, "foo", "bar.txt"): {
+			path:     filepath.Join(root, "foo", "bar.txt"),
+			mtime:    time.Unix(12345, 0),
+			size:     5678,
+			hashType: Hash{crypto.SHA512},
+			hash:     []byte{0xab, 0xab, 0xab, 0xab},
+		},
+	}
+
+	err := collection.Verify(func(p string) bool { return true }, nil)
+
+	assertNoErr(t, err)
 }
