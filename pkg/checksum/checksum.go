@@ -3,6 +3,7 @@ package checksum
 import (
 	"crypto"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"time"
 )
@@ -109,13 +110,102 @@ func (c *Checker) FillMissing(progress ProgressFunc) {
 	panic("Not implemented! TODO")
 }
 
+type Missing struct {
+	Files       []string
+	Directories []string
+}
+
 // Returns a result object containing all individual files that do not have checksums
 // in `self.root` yet.
 // If a directory has files and is completely missing it will be listed
 // in `directories`.
 // Note: The files of that directory will not appear in the file list.
-func (c *Checker) CheckMissing(progress ProgressFunc) {
-	panic("Not implemented! TODO")
+// TODO test
+func (c *Checker) CheckMissing(progress ProgressFunc) (Missing, error) {
+	mostCurrent, err := c.BuildMostCurrent(progress)
+	if err != nil {
+		return Missing{}, fmt.Errorf(
+			"failed to build most current for check missing: %w", err)
+	}
+
+	dirsWithHashedFile := make(map[string]struct{})
+	mostCurrent.ForEach(func(path string, _ *File) bool {
+		relativePath, err := filepath.Rel(c.root, path)
+		if err != nil {
+			panic("bug: a path in most current must be relative to checker root")
+		}
+
+		parent := filepath.Dir(relativePath)
+		for parent != "." && parent != "/" {
+			dirsWithHashedFile[parent] = struct{}{}
+
+			parent = filepath.Dir(parent)
+		}
+
+		return true
+	})
+
+	result := Missing{
+		Files:       []string{},
+		Directories: []string{},
+	}
+
+	numFound := uint64(0)
+	numIgnored := uint64(0)
+	err = FilteredWalk(c.root, c.options.AllFilesMatcher, func(path string, d fs.DirEntry, err error) error {
+		relativePath, relErr := filepath.Rel(c.root, path)
+		if relErr != nil {
+			panic("bug: iteration path must be relative to walkdir root")
+		}
+
+		if err == ErrFiltered {
+			if progress != nil {
+				numIgnored += 1
+				progress(DiscoverFilesIgnored{Path: relativePath})
+			}
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if relativePath == "." {
+			// we also visit the root itself
+			return nil
+		}
+
+		if d.IsDir() {
+			_, hasKnownHashedFiles := dirsWithHashedFile[relativePath]
+			if !hasKnownHashedFiles {
+				result.Directories = append(result.Directories, relativePath)
+				return fs.SkipDir
+			}
+		} else {
+			numFound += 1
+			if progress != nil {
+				progress(DiscoverFilesFound{Count: uint64(numFound)})
+			}
+
+			_, hasKnownHash := mostCurrent.Get(path)
+			if !hasKnownHash {
+				result.Files = append(result.Files, relativePath)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return Missing{}, fmt.Errorf(
+			"failed to disocver files for check missing: %w", err)
+	}
+
+	if progress != nil {
+		progress(DiscoverFilesDone{Found: numFound, Ignored: numIgnored})
+	}
+
+	return result, nil
 }
 
 // Build a checksum file containing all the most current hashes found in all
@@ -191,8 +281,24 @@ func (c *Checker) Verify(
 //   - `progress`: Progress callback that receives a [`VerifyRootProgress`]
 //     when building the most current checksum file
 //     and on verification progress.
-func (c *Checker) VerifyRoot(include func(path string) bool, progress ProgressFunc) {
-	panic("Not implemented! TODO")
+//
+// TODO test
+func (c *Checker) VerifyRoot(include func(path string) bool, progress ProgressFunc) error {
+	withoutFilterDeleted := c.options
+	withoutFilterDeleted.MostCurrentFilterDeleted = false
+
+	mostCurrent, err := buildMostCurrent(c.root, &withoutFilterDeleted, progress)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to build most current hash file for VerifyRoot: %w", err)
+	}
+
+	mostCurrent.Verify(include, func(p VerifyProgress) bool {
+		progress(p)
+		return true
+	})
+
+	return nil
 }
 
 // Rebasing a [`HashCollection`] into a new `destination_directory` directory,

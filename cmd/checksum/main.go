@@ -51,7 +51,8 @@ func main() {
 
 	// buildMostCurrent(&checker)
 	// verify(&checker, path)
-	incremental(&checker)
+	// incremental(&checker)
+	checkMissing(&checker)
 }
 
 func buildMostCurrent(checker *checksum.Checker) {
@@ -132,5 +133,34 @@ func incremental(checker *checksum.Checker) {
 	if err != nil {
 		fmt.Printf("incremental failed to write file: %s\n", err)
 		os.Exit(1)
+	}
+}
+
+func checkMissing(checker *checksum.Checker) {
+	reporter := NewProgressReporter()
+
+	missing, err := checker.CheckMissing(func(p checksum.ProgressEvent) {
+		reporter.Report(p)
+	})
+	if err != nil {
+		fmt.Printf("incremental failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	if len(missing.Directories) > 0 {
+		fmt.Println("Directories that are completely missing:")
+		for _, d := range missing.Directories {
+			fmt.Printf("\t%q\n", d)
+		}
+	}
+	if len(missing.Files) > 0 {
+		fmt.Println("Files that are missing:")
+		for _, f := range missing.Files {
+			fmt.Printf("\t%q\n", f)
+		}
+	}
+
+	if len(missing.Files) == 0 && len(missing.Directories) == 0 {
+		fmt.Println("Success! All files have a known hash! (No mtime check was made!)")
 	}
 }
