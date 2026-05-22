@@ -3,7 +3,6 @@ package main
 import (
 	// "errors"
 	"fmt"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -90,76 +89,10 @@ func verify(checker *checksum.Checker, path string) {
 		os.Exit(1)
 	}
 
-	var currentFile string
+	reporter := NewProgressReporter()
 
 	err = checker.Verify(collection, nil, func(p checksum.VerifyProgress) bool {
-		switch p.Stage {
-
-		case checksum.VerifyPre:
-			path := filepath.Join(p.Common.TreeRoot, p.Common.RelativePath)
-			currentFile = path
-
-			fmt.Printf(
-				"\n[VERIFY] (%4d/%4d) %s\n",
-				p.Common.FileNumberProcessed,
-				p.Common.FileNumberTotal,
-				path,
-			)
-
-			fmt.Printf(
-				"[PROG  ] bytes %10d / %10d\n",
-				p.Common.SizeProcessedBytes,
-				p.Common.SizeTotalBytes,
-			)
-
-		case checksum.VerifyDuring:
-			if currentFile != "" {
-				percent := 0.0
-				if p.Total > 0 {
-					percent = float64(p.Done) / float64(p.Total) * 100.0
-				}
-
-				fmt.Printf(
-					"\r[HASH  ] %-30s %8d/%8d bytes (%5.1f%%)",
-					filepath.Base(currentFile),
-					p.Done,
-					p.Total,
-					percent,
-				)
-			} else {
-				fmt.Printf(
-					"\r[HASH  ] %8d/%8d bytes",
-					p.Done,
-					p.Total,
-				)
-			}
-
-		case checksum.VerifyPost:
-			fmt.Print("\n")
-
-			path := filepath.Join(p.Common.TreeRoot, p.Common.RelativePath)
-
-			var status string
-			switch p.Result {
-
-			case checksum.VerifyOK:
-				status = "[OK        ]"
-			case checksum.VerifyFileMissing:
-				status = "[ERR MISS  ]"
-			case checksum.VerifyMismatch:
-				status = "[ERR HASH  ]"
-			case checksum.VerifyMismatchSize:
-				status = "[ERR SIZE  ]"
-			case checksum.VerifyMismatchCorrupted:
-				status = "[ERR CORR  ]"
-			case checksum.VerifyMismatchOutdatedHash:
-				status = "[WARN STALE]"
-			default:
-				status = "[UNKNOWN   ]"
-			}
-
-			fmt.Printf("%s %s\n", status, path)
-		}
+		reporter.ReportVerify(&p)
 
 		return true
 	})
@@ -171,7 +104,11 @@ func verify(checker *checksum.Checker, path string) {
 }
 
 func incremental(checker *checksum.Checker) {
-	inc, err := checker.Incremental(nil)
+	reporter := NewProgressReporter()
+
+	inc, err := checker.Incremental(func(p checksum.ProgressEvent) {
+		reporter.Report(p)
+	})
 	if err != nil {
 		fmt.Printf("incremental failed: %s\n", err)
 		os.Exit(1)
