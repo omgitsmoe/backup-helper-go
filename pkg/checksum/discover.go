@@ -41,11 +41,18 @@ func FilteredWalk(root string, matcher Matcher, fn fs.WalkDirFunc) error {
 	})
 }
 
-func discoverHashFiles(root string, options *Options, progress func()) ([]string, error) {
+func discoverHashFiles(root string, options *Options, progress ProgressFunc) ([]string, error) {
 	hashFiles := []string{}
 	err := FilteredWalk(root, options.HashFilesMatcher, func(path string, d fs.DirEntry, err error) error {
+		relativePath, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			panic("bug: iteration path must be relative to walkdir root")
+		}
+
 		if err == ErrFiltered {
-			// TODO progress
+			if progress != nil && (d.IsDir() || isHashFile(path)) {
+				progress(MostCurrentIgnoredPath{Path: relativePath})
+			}
 			return nil
 		}
 
@@ -60,12 +67,18 @@ func discoverHashFiles(root string, options *Options, progress func()) ([]string
 			}
 
 			if depth > options.DiscoverHashFilesDepth {
+				if progress != nil {
+					progress(MostCurrentIgnoredPath{Path: relativePath})
+				}
 				return fs.SkipDir
 			}
 		}
 
 		if !d.IsDir() && isHashFile(path) {
 			hashFiles = append(hashFiles, path)
+			if progress != nil {
+				progress(MostCurrentFoundFile{Path: relativePath})
+			}
 		}
 
 		return nil
@@ -120,11 +133,20 @@ func directoryDepth(base string, target string) (int, error) {
 	return depth, nil
 }
 
-func discoverFiles(root string, options *Options, progress func()) ([]string, error) {
+func discoverFiles(root string, options *Options, progress ProgressFunc) ([]string, error) {
 	paths := []string{}
+	ignored := uint64(0)
 	err := FilteredWalk(root, options.AllFilesMatcher, func(path string, d fs.DirEntry, err error) error {
+		relativePath, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			panic("bug: iteration path must be relative to walkdir root")
+		}
+
 		if err == ErrFiltered {
-			// TODO progress
+			if progress != nil {
+				ignored += 1
+				progress(DiscoverFilesIgnored{Path: relativePath})
+			}
 			return nil
 		}
 
@@ -134,6 +156,9 @@ func discoverFiles(root string, options *Options, progress func()) ([]string, er
 
 		if !d.IsDir() {
 			paths = append(paths, path)
+			if progress != nil {
+				progress(DiscoverFilesFound{Count: uint64(len(paths))})
+			}
 		}
 
 		return nil
@@ -141,6 +166,13 @@ func discoverFiles(root string, options *Options, progress func()) ([]string, er
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover files for hashing: %w", err)
+	}
+
+	if progress != nil {
+		progress(DiscoverFilesDone{
+			Found:   uint64(len(paths)),
+			Ignored: ignored,
+		})
 	}
 
 	return paths, nil

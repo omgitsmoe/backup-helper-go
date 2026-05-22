@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func buildMostCurrent(root string, options *Options, progress func()) (*HashCollection, error) {
+func buildMostCurrent(root string, options *Options, progress ProgressFunc) (*HashCollection, error) {
 	hashFiles, err := discoverHashFiles(root, options, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover hash files: %w", err)
@@ -30,6 +30,13 @@ func buildMostCurrent(root string, options *Options, progress func()) (*HashColl
 				"failed to read hash file at '%q': %w", pathWithMTime.Path, err)
 		}
 
+		if progress != nil {
+			relativePath, err := filepath.Rel(root, pathWithMTime.Path)
+			if err != nil {
+				panic("bug: discovered hash file must be relative to most current root")
+			}
+			progress(MostCurrentMergeHashFile{Path: relativePath})
+		}
 		err = mostCurrent.Merge(hashFile)
 		if err != nil {
 			return nil, fmt.Errorf(

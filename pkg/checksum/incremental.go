@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func incremental(root string, mostCurrent *HashCollection, options *Options, progress func()) (*HashCollection, error) {
+func incremental(root string, mostCurrent *HashCollection, options *Options, progress ProgressFunc) (*HashCollection, error) {
 	allFiles, err := discoverFiles(root, options, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover files for hashing: %w", err)
@@ -23,6 +23,7 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 		panic("bug: unreachable")
 	}
 
+	// TODO only create if IncrementalPeriodicWriteInterval>0
 	f, err := os.Create(resultPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create incremental hash file: %w", err)
@@ -34,14 +35,22 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 
 	for _, p := range allFiles {
 		file := NewFile(p, options.HashType)
-		err := file.UpdateMetadata()
+		relativePath, err := filepath.Rel(root, p)
+		if err != nil {
+			panic("bug: incremental file path must be relative to incremental root")
+		}
+
+		previous, hasPrevious := mostCurrent.Get(p)
+
+		if progress != nil {
+			progress(PreRead{Path: relativePath})
+		}
+		err = file.UpdateMetadata()
 		if err != nil {
 			return nil, fmt.Errorf(
 				"failed to get file metadata during incremental hash file generation: %w",
 				err)
 		}
-
-		previous, hasPrevious := mostCurrent.Get(p)
 
 		if options.IncrementalSkipUnchanged && hasPrevious &&
 			file.mtime.Equal(previous.mtime) {
@@ -54,11 +63,21 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 					err)
 			}
 
+			if progress != nil {
+				progress(FileUnchangedSkipped{Path: relativePath})
+			}
+
 			continue
 		}
 
-		// TODO progress
-		err = file.UpdateHash(nil)
+		err = file.UpdateHash(func(done, total uint64) {
+			if progress != nil {
+				progress(ReadProgress{
+					Read:  done,
+					Total: total,
+				})
+			}
+		})
 		if err != nil {
 			return nil, fmt.Errorf(
 				"failed to compute hash for file at '%q': %w",
@@ -67,11 +86,16 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 
 		include := true
 		if hasPrevious {
-			include, err = incrementalInclude(&file, previous, options, progress)
+			include, err = incrementalInclude(
+				&relativePath, &file, previous, options, progress)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to process hash file at '%q' during incremental generation: %w",
 					p, err)
+			}
+		} else {
+			if progress != nil {
+				progress(FileNew{Path: relativePath})
 			}
 		}
 
@@ -95,17 +119,45 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 		serializer.Flush(result)
 	}
 
-	// TODO missing files
+	if progress != nil {
+		seen := make(map[string]struct{}, len(allFiles))
+		for _, p := range allFiles {
+			seen[p] = struct{}{}
+		}
 
+		mostCurrent.ForEach(func(path string, _ *File) bool {
+			if _, ok := seen[path]; !ok {
+				relativePath, err := filepath.Rel(root, path)
+				if err != nil {
+					panic("bug: incremental file path must be relative to incremental root")
+				}
+				// file is missing on disk
+				progress(FileRemoved{Path: relativePath})
+			}
+
+			return true
+		})
+
+		progress(Finished{})
+	}
 	return result, nil
 }
 
-func incrementalInclude(onDisk *File, previous *File, options *Options, progress func()) (bool, error) {
+func incrementalInclude(
+	relativePath *string, onDisk *File, previous *File, options *Options,
+	progress ProgressFunc) (bool, error) {
 	hashToCompareToPrevious := onDisk.hash
 	if onDisk.hashType != previous.hashType {
-		// TODO progress
 		var err error
-		hashToCompareToPrevious, err = HashFile(onDisk.path, previous.hashType, nil)
+		hashToCompareToPrevious, err = HashFile(
+			onDisk.path, previous.hashType, func(done, total uint64) {
+				if progress != nil {
+					progress(ReadProgress{
+						Read:  done,
+						Total: total,
+					})
+				}
+			})
 		if err != nil {
 			return false, fmt.Errorf(
 				"failed to re-compute hash to compare against recorded hash type: %w",
@@ -114,10 +166,25 @@ func incrementalInclude(onDisk *File, previous *File, options *Options, progress
 	}
 
 	if slices.Equal(hashToCompareToPrevious, previous.hash) {
+		if progress != nil {
+			progress(FileMatch{Path: *relativePath})
+		}
 		return options.IncrementalIncludeUnchangedFiles, nil
 	}
 
-	// TODO progress with changed/corrupted etc.
+	if progress != nil {
+		if onDisk.mtime.IsZero() || previous.mtime.IsZero() {
+			progress(FileChanged{Path: *relativePath})
+		} else if previous.mtime.After(onDisk.mtime) {
+			progress(FileChanged{Path: *relativePath})
+		} else if previous.mtime.Equal(onDisk.mtime) {
+			progress(FileChangedCorrupted{Path: *relativePath})
+		} else if previous.mtime.Before(onDisk.mtime) {
+			progress(FileChangedOlder{Path: *relativePath})
+		} else {
+			panic("unreachable")
+		}
+	}
 
 	return true, nil
 }

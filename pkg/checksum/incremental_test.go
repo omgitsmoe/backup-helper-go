@@ -19,10 +19,11 @@ func TestIncremental(t *testing.T) {
 		allFilesMatcher       Matcher
 		testFiles             []testFile
 		expectedSerialization string
+		expectedProgress      []ProgressEvent
 		wantErr               bool
 	}{
 		{
-			name:             "empty dir",
+			name:             "empty dir: FileRemoved",
 			skipUnchanged:    false,
 			includeUnchanged: false,
 			hashType:         Hash{crypto.MD5},
@@ -43,7 +44,15 @@ func TestIncremental(t *testing.T) {
 			allFilesMatcher:       Matcher{},
 			testFiles:             []testFile{},
 			expectedSerialization: ``,
-			wantErr:               false,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesDone{
+					Found:   0,
+					Ignored: 0,
+				},
+				FileRemoved{Path: filepath.Join("foo", "bar", "linux.iso")},
+				Finished{},
+			},
+			wantErr: false,
 		},
 		{
 			name:             "all",
@@ -106,6 +115,44 @@ func TestIncremental(t *testing.T) {
 500,16,md5,2f95b10ff8bbc6367edd718cc8eba062 nested/dir/a.txt
 600,22,md5,b05ea47eeb9a9aa7a6a7c751ed34bccc nested/dir/sub/foo.doc
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesFound{Count: 3},
+				DiscoverFilesFound{Count: 4},
+				DiscoverFilesFound{Count: 5},
+				DiscoverFilesFound{Count: 6},
+				DiscoverFilesDone{
+					Found:   6,
+					Ignored: 0,
+				},
+				PreRead{Path: "abc.txt"},
+				ReadProgress{Read: 7, Total: 7},
+				ReadProgress{Read: 7, Total: 7},
+				FileNew{Path: "abc.txt"},
+				PreRead{Path: filepath.Join("foo", "bar", "file.bin")},
+				ReadProgress{Read: 16, Total: 16},
+				ReadProgress{Read: 16, Total: 16},
+				FileNew{Path: filepath.Join("foo", "bar", "file.bin")},
+				PreRead{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				ReadProgress{Read: 15, Total: 15},
+				ReadProgress{Read: 15, Total: 15},
+				FileNew{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				PreRead{Path: filepath.Join("foo.cshd")},
+				ReadProgress{Read: 8, Total: 8},
+				ReadProgress{Read: 8, Total: 8},
+				FileNew{Path: filepath.Join("foo.cshd")},
+				PreRead{Path: filepath.Join("nested", "dir", "a.txt")},
+				ReadProgress{Read: 16, Total: 16},
+				ReadProgress{Read: 16, Total: 16},
+				FileNew{Path: filepath.Join("nested", "dir", "a.txt")},
+				PreRead{Path: filepath.Join("nested", "dir", "sub", "foo.doc")},
+				ReadProgress{Read: 22, Total: 22},
+				ReadProgress{Read: 22, Total: 22},
+				FileNew{Path: filepath.Join("nested", "dir", "sub", "foo.doc")},
+				FileRemoved{Path: filepath.Join("foo", "bar", "linux.iso")},
+				Finished{},
+			},
 			wantErr: false,
 		},
 		{
@@ -176,6 +223,32 @@ func TestIncremental(t *testing.T) {
 401,23,md5,8785a5fc676e75cd98062644c8ecd2ec foo/bar/vid.mp4
 600,22,md5,b05ea47eeb9a9aa7a6a7c751ed34bccc nested/dir/sub/foo.doc
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesFound{Count: 3},
+				DiscoverFilesFound{Count: 4},
+				DiscoverFilesDone{
+					Found:   4,
+					Ignored: 0,
+				},
+				PreRead{Path: "abc.txt"},
+				ReadProgress{Read: 7, Total: 7},
+				ReadProgress{Read: 7, Total: 7},
+				FileMatch{Path: "abc.txt"},
+				PreRead{Path: "file.txt"},
+				// read skipped due to skipUnchanged
+				FileUnchangedSkipped{Path: "file.txt"},
+				PreRead{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				ReadProgress{Read: 23, Total: 23},
+				ReadProgress{Read: 23, Total: 23},
+				FileChangedOlder{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				PreRead{Path: filepath.Join("nested", "dir", "sub", "foo.doc")},
+				ReadProgress{Read: 22, Total: 22},
+				ReadProgress{Read: 22, Total: 22},
+				FileNew{Path: filepath.Join("nested", "dir", "sub", "foo.doc")},
+				Finished{},
+			},
 			wantErr: false,
 		},
 		{
@@ -210,7 +283,19 @@ func TestIncremental(t *testing.T) {
 				},
 			},
 			expectedSerialization: "",
-			wantErr:               false,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 0,
+				},
+				PreRead{Path: "file.txt"},
+				ReadProgress{Read: 8, Total: 8},
+				ReadProgress{Read: 8, Total: 8},
+				FileMatch{Path: "file.txt"},
+				Finished{},
+			},
+			wantErr: false,
 		},
 		{
 			name:             "includeUnchanged=true keeps unchanged file",
@@ -245,6 +330,18 @@ func TestIncremental(t *testing.T) {
 			expectedSerialization: `# version 1
 101,8,md5,3d8e577bddb17db339eae0b3d9bcf180 file.txt
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 0,
+				},
+				PreRead{Path: "file.txt"},
+				ReadProgress{Read: 8, Total: 8},
+				ReadProgress{Read: 8, Total: 8},
+				FileMatch{Path: "file.txt"},
+				Finished{},
+			},
 			wantErr: false,
 		},
 		{
@@ -280,6 +377,18 @@ func TestIncremental(t *testing.T) {
 			expectedSerialization: `# version 1
 101,16,md5,984d5fc81394a6c1236876296699dafc file.txt
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 0,
+				},
+				PreRead{Path: "file.txt"},
+				ReadProgress{Read: 16, Total: 16},
+				ReadProgress{Read: 16, Total: 16},
+				FileChangedOlder{Path: "file.txt"},
+				Finished{},
+			},
 			wantErr: false,
 		},
 		{
@@ -315,6 +424,16 @@ func TestIncremental(t *testing.T) {
 			expectedSerialization: `# version 1
 100,8,md5,3d8e577bddb17db339eae0b3d9bcf180 file.txt
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 0,
+				},
+				PreRead{Path: "file.txt"},
+				FileUnchangedSkipped{Path: "file.txt"},
+				Finished{},
+			},
 			wantErr: false,
 		},
 		{
@@ -349,6 +468,20 @@ func TestIncremental(t *testing.T) {
 			expectedSerialization: `# version 1
 200,15,md5,87ae905d8f1fe92704f8e41cac4b81e2 foo/bar/vid.mp4
 `,
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "omg.doc")},
+				DiscoverFilesIgnored{Path: filepath.Join("file.txt")},
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 2,
+				},
+				PreRead{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				ReadProgress{Read: 15, Total: 15},
+				ReadProgress{Read: 15, Total: 15},
+				FileNew{Path: filepath.Join("foo", "bar", "vid.mp4")},
+				Finished{},
+			},
 			wantErr: false,
 		},
 	}
@@ -366,7 +499,13 @@ func TestIncremental(t *testing.T) {
 			options.IncrementalIncludeUnchangedFiles = tt.includeUnchanged
 			options.AllFilesMatcher = tt.allFilesMatcher
 
-			got, err := incremental(root, mostCurrent, &options, nil)
+			receivedProgress := []ProgressEvent{}
+			got, err := incremental(
+				root, mostCurrent, &options,
+				func(p ProgressEvent) {
+					receivedProgress = append(receivedProgress, p)
+				},
+			)
 
 			if tt.wantErr {
 				if err == nil {
@@ -382,8 +521,43 @@ func TestIncremental(t *testing.T) {
 			gotSerialization := b.String()
 
 			assertEqual(t, gotSerialization, tt.expectedSerialization)
+			assertSliceEqual(t, receivedProgress, tt.expectedProgress)
 		})
 	}
+}
+
+func TestIncrementalProgressNil(t *testing.T) {
+	root := t.TempDir()
+	createFromTestFiles(
+		t,
+		root,
+		[]testFile{
+			{relativePath: filepath.Join("foo", "bar", "file.txt")},
+		},
+	)
+
+	options := DefaultOptions()
+	_, err := incremental(root,
+		&HashCollection{
+			root: root,
+			name: "most_current.cshd",
+			pathToFile: map[string]*File{
+				filepath.Join(root, "file.txt"): {
+					path:     filepath.Join(root, "file.txt"),
+					mtime:    time.Unix(100, 0),
+					size:     8,
+					hashType: Hash{crypto.MD5},
+					hash: []byte{
+						0x3d, 0x8e, 0x57, 0x7b, 0xdd, 0xb1, 0x7d, 0xb3,
+						0x39, 0xea, 0xe0, 0xb3, 0xd9, 0xbc, 0xf1, 0x80,
+					},
+				},
+			},
+		},
+		&options,
+		nil)
+
+	assertNoErr(t, err)
 }
 
 func TestIncrementalInclude(t *testing.T) {
@@ -391,7 +565,6 @@ func TestIncrementalInclude(t *testing.T) {
 	createFromTestFiles(t, root, []testFile{
 		{
 			relativePath: "foo/bar/baz.txt",
-			mtime:        time.Time{},
 			// md5 2c24aaea72e6bdca2403068ccdf8515c
 			// sha256 87a9745e78c3c8d613a3201ea6298872bb813dfa0f3d4c3ec57c169c0ea3b869
 			contents: []byte("heyho"),
@@ -399,15 +572,18 @@ func TestIncrementalInclude(t *testing.T) {
 	})
 
 	tests := []struct {
-		name            string
-		onDisk          *File
-		previous        *File
-		includeUnchaged bool
-		expected        bool
-		wantErr         bool
+		name             string
+		relativePath     string
+		onDisk           *File
+		previous         *File
+		includeUnchaged  bool
+		expected         bool
+		expectedProgress []ProgressEvent
+		wantErr          bool
 	}{
 		{
-			name: "same hash and type + include unchanged",
+			name:         "same hash and type + include unchanged",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -430,10 +606,14 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: true,
 			expected:        true,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				FileMatch{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "same hash and other type + include unchanged",
+			name:         "same hash and other type + include unchanged",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -455,10 +635,22 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: true,
 			expected:        true,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				FileMatch{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "same hash and type + no include unchanged",
+			name:         "same hash and type + no include unchanged",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -481,10 +673,14 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: false,
 			expected:        false,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				FileMatch{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "same hash and other type + no include unchanged",
+			name:         "same hash and other type + no include unchanged",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -506,10 +702,22 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: false,
 			expected:        false,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				FileMatch{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "different hash and type",
+			name:         "different hash and same type",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -532,10 +740,104 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: false,
 			expected:        true,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				FileChanged{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "different hash and other type",
+			name:         "FileChangedCorrupted",
+			relativePath: "testingpath123",
+			onDisk: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(100, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0xff, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			previous: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(100, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0x2c, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			includeUnchaged: false,
+			expected:        true,
+			expectedProgress: []ProgressEvent{
+				FileChangedCorrupted{Path: "testingpath123"},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "FileChangedOlder",
+			relativePath: "testingpath123",
+			onDisk: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(200, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0xff, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			previous: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(100, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0x2c, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			includeUnchaged: false,
+			expected:        true,
+			expectedProgress: []ProgressEvent{
+				FileChangedOlder{Path: "testingpath123"},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "hash newer than on disk => FileChanged",
+			relativePath: "testingpath123",
+			onDisk: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(100, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0xff, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			previous: &File{
+				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
+				mtime:    time.Unix(200, 0),
+				size:     0,
+				hashType: Hash{crypto.MD5},
+				hash: []byte{
+					0x2c, 0x24, 0xaa, 0xea, 0x72, 0xe6, 0xbd, 0xca,
+					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
+				},
+			},
+			includeUnchaged: false,
+			expected:        true,
+			expectedProgress: []ProgressEvent{
+				FileChanged{Path: "testingpath123"},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "different hash and other type",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "foo", "bar", "baz.txt"),
 				mtime:    time.Time{},
@@ -557,10 +859,22 @@ func TestIncrementalInclude(t *testing.T) {
 			},
 			includeUnchaged: false,
 			expected:        true,
-			wantErr:         false,
+			expectedProgress: []ProgressEvent{
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				ReadProgress{
+					Read:  5,
+					Total: 5,
+				},
+				FileChanged{Path: "testingpath123"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "different hash and other type => err missing file",
+			name:         "different hash and other type => err missing file",
+			relativePath: "testingpath123",
 			onDisk: &File{
 				path:     filepath.Join(root, "does", "not", "exist.txt"),
 				mtime:    time.Time{},
@@ -580,9 +894,10 @@ func TestIncrementalInclude(t *testing.T) {
 					0x24, 0x03, 0x06, 0x8c, 0xcd, 0xf8, 0x51, 0x5c,
 				},
 			},
-			includeUnchaged: false,
-			expected:        false,
-			wantErr:         true,
+			includeUnchaged:  false,
+			expected:         false,
+			expectedProgress: []ProgressEvent{},
+			wantErr:          true,
 		},
 	}
 	for _, tt := range tests {
@@ -590,7 +905,14 @@ func TestIncrementalInclude(t *testing.T) {
 			options := DefaultOptions()
 			options.IncrementalIncludeUnchangedFiles = tt.includeUnchaged
 
-			got, err := incrementalInclude(tt.onDisk, tt.previous, &options, nil)
+			receivedProgress := []ProgressEvent{}
+			got, err := incrementalInclude(
+				&tt.relativePath,
+				tt.onDisk, tt.previous, &options,
+				func(p ProgressEvent) {
+					receivedProgress = append(receivedProgress, p)
+				},
+			)
 
 			if tt.wantErr {
 				if err == nil {
@@ -601,6 +923,7 @@ func TestIncrementalInclude(t *testing.T) {
 			}
 
 			assertEqual(t, got, tt.expected)
+			assertSliceEqual(t, receivedProgress, tt.expectedProgress)
 		})
 	}
 }

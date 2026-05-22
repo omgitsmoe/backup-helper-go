@@ -199,10 +199,11 @@ func TestDiscoverHashFiles(t *testing.T) {
 	})
 
 	tests := []struct {
-		name          string
-		matcher       Matcher
-		discoverDepth int
-		expectedPaths []string
+		name             string
+		matcher          Matcher
+		discoverDepth    int
+		expectedPaths    []string
+		expectedProgress []ProgressEvent
 	}{
 		{
 			name:          "all hash files",
@@ -214,6 +215,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"foo/2026-05-14.md5",
 				"foo/bar/most_current_2025-10-23.sha512",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -229,6 +237,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"foo/bar/most_current_2025-10-23.sha512",
 				"foo.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
+			},
 		},
 		{
 			name:          "only root depth",
@@ -237,6 +252,12 @@ func TestDiscoverHashFiles(t *testing.T) {
 			expectedPaths: []string{
 				"check.sha3_256",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentIgnoredPath{Path: "baz"},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: "foo"},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -247,6 +268,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"check.sha3_256",
 				"foo/2026-05-14.md5",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentIgnoredPath{Path: filepath.Join("baz", "xer")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "bar")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -260,6 +288,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"foo/bar/most_current_2025-10-23.sha512",
 				"foo.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
+			},
 		},
 		{
 			name: "only .cshd",
@@ -270,6 +305,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 			expectedPaths: []string{
 				"baz/xer/xer_bh_2026-01-13.cshd",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentIgnoredPath{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -284,6 +326,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 			expectedPaths: []string{
 				"foo.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentIgnoredPath{Path: "baz"},
+				MostCurrentIgnoredPath{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
+			},
 		},
 		{
 			name: "only .cshd in root",
@@ -293,6 +342,12 @@ func TestDiscoverHashFiles(t *testing.T) {
 			discoverDepth: 0,
 			expectedPaths: []string{
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentIgnoredPath{Path: "baz"},
+				MostCurrentIgnoredPath{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: "foo"},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -306,6 +361,13 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"check.sha3_256",
 				"foo/bar/most_current_2025-10-23.sha512",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: filepath.Join("foo", "2026-05-14.md5")},
+				MostCurrentFoundFile{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				MostCurrentFoundFile{Path: "foo.cshd"},
 			},
 		},
 		{
@@ -322,6 +384,12 @@ func TestDiscoverHashFiles(t *testing.T) {
 				"check.sha3_256",
 				"foo.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentFoundFile{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: "foo"},
+				MostCurrentFoundFile{Path: "foo.cshd"},
+			},
 		},
 		{
 			name: "only root, no .cshd",
@@ -332,6 +400,12 @@ func TestDiscoverHashFiles(t *testing.T) {
 			expectedPaths: []string{
 				"check.sha3_256",
 			},
+			expectedProgress: []ProgressEvent{
+				MostCurrentIgnoredPath{Path: "baz"},
+				MostCurrentFoundFile{Path: "check.sha3_256"},
+				MostCurrentIgnoredPath{Path: "foo"},
+				MostCurrentIgnoredPath{Path: "foo.cshd"},
+			},
 		},
 	}
 
@@ -341,12 +415,16 @@ func TestDiscoverHashFiles(t *testing.T) {
 			options.DiscoverHashFilesDepth = tt.discoverDepth
 			options.HashFilesMatcher = tt.matcher
 
-			paths, err := discoverHashFiles(testdir, &options, nil)
+			receivedProgress := []ProgressEvent{}
+			paths, err := discoverHashFiles(testdir, &options, func(p ProgressEvent) {
+				receivedProgress = append(receivedProgress, p)
+			})
 			assertNoErr(t, err)
 
 			expectedPathsNormalized := normalizeRelativeTestingPath(
 				t, testdir, tt.expectedPaths)
 			assertSliceEqual(t, paths, expectedPathsNormalized)
+			assertSliceEqual(t, receivedProgress, tt.expectedProgress)
 		})
 	}
 }
@@ -425,9 +503,10 @@ func TestDiscoverFiles(t *testing.T) {
 	})
 
 	tests := []struct {
-		name          string
-		matcher       Matcher
-		expectedPaths []string
+		name             string
+		matcher          Matcher
+		expectedPaths    []string
+		expectedProgress []ProgressEvent
 	}{
 		{
 			name:    "all files",
@@ -445,6 +524,24 @@ func TestDiscoverFiles(t *testing.T) {
 				"foo/test.md",
 				"foo/vid.mp4",
 				"foo.cshd",
+			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesFound{Count: 3},
+				DiscoverFilesFound{Count: 4},
+				DiscoverFilesFound{Count: 5},
+				DiscoverFilesFound{Count: 6},
+				DiscoverFilesFound{Count: 7},
+				DiscoverFilesFound{Count: 8},
+				DiscoverFilesFound{Count: 9},
+				DiscoverFilesFound{Count: 10},
+				DiscoverFilesFound{Count: 11},
+				DiscoverFilesFound{Count: 12},
+				DiscoverFilesDone{
+					Found:   12,
+					Ignored: 0,
+				},
 			},
 		},
 		{
@@ -466,6 +563,24 @@ func TestDiscoverFiles(t *testing.T) {
 				"foo/vid.mp4",
 				"foo.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesFound{Count: 3},
+				DiscoverFilesFound{Count: 4},
+				DiscoverFilesFound{Count: 5},
+				DiscoverFilesFound{Count: 6},
+				DiscoverFilesFound{Count: 7},
+				DiscoverFilesFound{Count: 8},
+				DiscoverFilesFound{Count: 9},
+				DiscoverFilesFound{Count: 10},
+				DiscoverFilesFound{Count: 11},
+				DiscoverFilesFound{Count: 12},
+				DiscoverFilesDone{
+					Found:   12,
+					Ignored: 0,
+				},
+			},
 		},
 		{
 			name: "only *.txt",
@@ -474,6 +589,24 @@ func TestDiscoverFiles(t *testing.T) {
 			}),
 			expectedPaths: []string{
 				"file.txt",
+			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "file.txt")},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "omg.docx")},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				DiscoverFilesIgnored{Path: filepath.Join("check.sha3_256")},
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "2026-05-14.md5")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "ex.sha512.bin")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "file.txt")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "test.md")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "vid.mp4")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo.cshd")},
+				DiscoverFilesDone{
+					Found:   1,
+					Ignored: 11,
+				},
 			},
 		},
 		{
@@ -485,6 +618,24 @@ func TestDiscoverFiles(t *testing.T) {
 				"baz/xer/file.txt",
 				"file.txt",
 				"foo/bar/file.txt",
+			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "omg.docx")},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				DiscoverFilesIgnored{Path: filepath.Join("check.sha3_256")},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "2026-05-14.md5")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "ex.sha512.bin")},
+				DiscoverFilesFound{Count: 3},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "test.md")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "vid.mp4")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo.cshd")},
+				DiscoverFilesDone{
+					Found:   3,
+					Ignored: 9,
+				},
 			},
 		},
 		{
@@ -499,6 +650,20 @@ func TestDiscoverFiles(t *testing.T) {
 				"baz/xer/file.txt",
 				"file.txt",
 			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "omg.docx")},
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "xer_bh_2026-01-13.cshd")},
+				DiscoverFilesIgnored{Path: filepath.Join("check.sha3_256")},
+				DiscoverFilesFound{Count: 2},
+				// NOTE: files inside directories are not counted
+				DiscoverFilesIgnored{Path: filepath.Join("foo")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo.cshd")},
+				DiscoverFilesDone{
+					Found:   2,
+					Ignored: 5,
+				},
+			},
 		},
 		{
 			name: "only baz/xer/ except *.txt",
@@ -512,6 +677,24 @@ func TestDiscoverFiles(t *testing.T) {
 				"baz/xer/omg.docx",
 				"baz/xer/xer_bh_2026-01-13.cshd",
 			},
+			expectedProgress: []ProgressEvent{
+				DiscoverFilesIgnored{Path: filepath.Join("baz", "xer", "file.txt")},
+				DiscoverFilesFound{Count: 1},
+				DiscoverFilesFound{Count: 2},
+				DiscoverFilesIgnored{Path: filepath.Join("check.sha3_256")},
+				DiscoverFilesIgnored{Path: filepath.Join("file.txt")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "2026-05-14.md5")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "ex.sha512.bin")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "file.txt")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "bar", "most_current_2025-10-23.sha512")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "test.md")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo", "vid.mp4")},
+				DiscoverFilesIgnored{Path: filepath.Join("foo.cshd")},
+				DiscoverFilesDone{
+					Found:   2,
+					Ignored: 10,
+				},
+			},
 		},
 	}
 
@@ -520,12 +703,16 @@ func TestDiscoverFiles(t *testing.T) {
 			options := DefaultOptions()
 			options.AllFilesMatcher = tt.matcher
 
-			paths, err := discoverFiles(testdir, &options, nil)
+			receivedProgress := []ProgressEvent{}
+			paths, err := discoverFiles(testdir, &options, func(p ProgressEvent) {
+				receivedProgress = append(receivedProgress, p)
+			})
 			assertNoErr(t, err)
 
 			expectedPathsNormalized := normalizeRelativeTestingPath(
 				t, testdir, tt.expectedPaths)
 			assertSliceEqual(t, paths, expectedPathsNormalized)
+			assertSliceEqual(t, receivedProgress, tt.expectedProgress)
 		})
 	}
 }
@@ -549,4 +736,17 @@ func TestDiscoverFilesOnlyFiles(t *testing.T) {
 			"xer.sha512/baz.doc/vid.mp4",
 		})
 	assertSliceEqual(t, paths, expectedPathsNormalized)
+}
+
+func TestDiscoverFilesProgressNil(t *testing.T) {
+	testdir := t.TempDir()
+	createFilesFromList(t, testdir, []string{
+		"bar.bin/foo.txt",
+		"foo/bar/most_current_2025-10-23.sha512",
+		"xer.sha512/baz.doc/vid.mp4",
+	})
+
+	opt := DefaultOptions()
+	_, err := discoverFiles(testdir, &opt, nil)
+	assertNoErr(t, err)
 }

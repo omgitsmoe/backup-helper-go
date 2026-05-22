@@ -353,3 +353,56 @@ func TestBuildMostCurrent(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildMostCurrentCallsProgress(t *testing.T) {
+	testFiles := []testFile{
+		{
+			relativePath: "file.md5",
+			mtime:        time.Unix(200, 0),
+			contents: []byte(`5577 foo/data/vid.mp4
+1111 empty.dat
+3344 root.txt
+6666 tiny.flag
+4444 deep/inside/file.log
+`),
+		},
+		{
+			relativePath: "foo/file.cshd",
+			mtime:        time.Unix(300, 0),
+			contents: []byte(`# version 1
+1133779,112233,md5,abababab bar/file.bin
+112500.25,11777,sha256,5555 data/blob.bin
+113500.25,11888,sha256,5577 data/vid.mp4
+`),
+		},
+		{
+			relativePath: "nested/dir/file.sha256",
+			mtime:        time.Unix(400, 0),
+			contents: []byte(`2222 a.txt
+8877 sub/deep.bin
+`),
+		},
+	}
+
+	expectedProgress := []ProgressEvent{
+		MostCurrentFoundFile{Path: "file.md5"},
+		MostCurrentFoundFile{Path: filepath.Join("foo", "file.cshd")},
+		MostCurrentFoundFile{Path: filepath.Join("nested", "dir", "file.sha256")},
+		MostCurrentMergeHashFile{Path: "file.md5"},
+		MostCurrentMergeHashFile{Path: filepath.Join("foo", "file.cshd")},
+		MostCurrentMergeHashFile{Path: filepath.Join("nested", "dir", "file.sha256")},
+	}
+
+	root := t.TempDir()
+	createFromTestFiles(t, root, testFiles)
+
+	receivedProgress := []ProgressEvent{}
+
+	options := DefaultOptions()
+	_, err := buildMostCurrent(root, &options, func(p ProgressEvent) {
+		receivedProgress = append(receivedProgress, p)
+	})
+
+	assertNoErr(t, err)
+	assertSliceEqual(t, receivedProgress, expectedProgress)
+}

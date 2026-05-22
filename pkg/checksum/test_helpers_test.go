@@ -3,6 +3,7 @@ package checksum
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -113,7 +114,7 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 	}
 
 	if len(actual) != len(expected) {
-		t.Logf("want %v vs got %v", expected, actual)
+		t.Logf("\nwant %v\n vs\n got %v", expected, actual)
 		t.Fatalf(
 			"expected len %d, got %d",
 			len(expected), len(actual),
@@ -122,9 +123,44 @@ func assertSliceEqual[T comparable](t *testing.T, actual []T, expected []T) {
 
 	for i := range expected {
 		if expected[i] != actual[i] {
-			t.Logf("\nwant %v\n vs\ngot %v", expected, actual)
+			t.Logf("\nwant %v\n vs\n got %v", expected, actual)
 			t.Fatalf("at index %d: expected %v, got %v", i, expected[i], actual[i])
 		}
+	}
+}
+
+func assertInterfaceEqual(t *testing.T, actual, expected interface{}) {
+	t.Helper()
+
+	if reflect.TypeOf(actual) != reflect.TypeOf(expected) {
+		t.Fatalf(
+			"type mismatch:\n  expected: %T\n  actual:   %T",
+			expected, actual,
+		)
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf(
+			"value mismatch:\n  expected: %#v\n  actual:   %#v",
+			expected, actual,
+		)
+	}
+}
+
+func assertInterfaceSliceEqual[T any](t *testing.T, actual, expected []T) {
+	t.Helper()
+
+	if (actual == nil) != (expected == nil) {
+		t.Fatalf("nil mismatch: expected %v, got %v", expected, actual)
+	}
+
+	if len(actual) != len(expected) {
+		t.Logf("want %v vs got %v", expected, actual)
+		t.Fatalf("expected len %d, got %d", len(expected), len(actual))
+	}
+
+	for i := range expected {
+		assertInterfaceEqual(t, actual[i], expected[i])
 	}
 }
 

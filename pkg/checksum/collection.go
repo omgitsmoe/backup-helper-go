@@ -246,6 +246,8 @@ type VerifyProgress struct {
 	Result VerifyResult
 }
 
+func (VerifyProgress) isProgressEvent() {}
+
 func (c *HashCollection) SizeTotalBytes() int64 {
 	total := int64(0)
 	for _, f := range c.pathToFile {

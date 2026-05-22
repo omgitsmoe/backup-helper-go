@@ -93,7 +93,7 @@ func NewCheckerWithOptions(root string, options Options) (Checker, error) {
 	}, nil
 }
 
-func (c *Checker) Incremental(progress func()) (*HashCollection, error) {
+func (c *Checker) Incremental(progress ProgressFunc) (*HashCollection, error) {
 	mostCurrent, err := c.BuildMostCurrent(progress)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -105,7 +105,7 @@ func (c *Checker) Incremental(progress func()) (*HashCollection, error) {
 
 // Generate a [`HashCollection`], which only contains the hashes of
 // files that do not have checksum in any matched hash file yet.
-func (c *Checker) FillMissing(progress func()) {
+func (c *Checker) FillMissing(progress ProgressFunc) {
 	panic("Not implemented! TODO")
 }
 
@@ -114,7 +114,7 @@ func (c *Checker) FillMissing(progress func()) {
 // If a directory has files and is completely missing it will be listed
 // in `directories`.
 // Note: The files of that directory will not appear in the file list.
-func (c *Checker) CheckMissing(progress func()) {
+func (c *Checker) CheckMissing(progress ProgressFunc) {
 	panic("Not implemented! TODO")
 }
 
@@ -131,7 +131,7 @@ func (c *Checker) CheckMissing(progress func()) {
 //     when progress is made.
 //   - `action`: Closure that receives a reference to most current
 //     [`HashCollection`].
-func (c *Checker) BuildMostCurrent(progress func()) (*HashCollection, error) {
+func (c *Checker) BuildMostCurrent(progress ProgressFunc) (*HashCollection, error) {
 	if c.mostCurrent != nil {
 		return c.mostCurrent, nil
 	}
@@ -191,7 +191,7 @@ func (c *Checker) Verify(
 //   - `progress`: Progress callback that receives a [`VerifyRootProgress`]
 //     when building the most current checksum file
 //     and on verification progress.
-func (c *Checker) VerifyRoot(include func(path string) bool, progress func()) {
+func (c *Checker) VerifyRoot(include func(path string) bool, progress ProgressFunc) {
 	panic("Not implemented! TODO")
 }
 

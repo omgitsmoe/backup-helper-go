@@ -92,7 +92,7 @@ func verify(checker *checksum.Checker, path string) {
 
 	var currentFile string
 
-	err = checker.Verify(collection, func(p checksum.VerifyProgress) bool {
+	err = checker.Verify(collection, nil, func(p checksum.VerifyProgress) bool {
 		switch p.Stage {
 
 		case checksum.VerifyPre:
