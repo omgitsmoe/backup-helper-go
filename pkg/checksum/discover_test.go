@@ -3,6 +3,7 @@ package checksum
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -749,4 +750,77 @@ func TestDiscoverFilesProgressNil(t *testing.T) {
 	opt := DefaultOptions()
 	_, err := discoverFiles(testdir, &opt, nil)
 	assertNoErr(t, err)
+}
+
+func TestFilteredWalk_FiltersSymlinkedDirs(t *testing.T) {
+	root := t.TempDir()
+
+	regularDir := filepath.Join(root, "dir")
+	if err := os.Mkdir(regularDir, 0o755); err != nil {
+		t.Fatalf("mkdir regular dir: %v", err)
+	}
+
+	regularFile := filepath.Join(root, "file.txt")
+	if err := os.WriteFile(regularFile, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("write regular file: %v", err)
+	}
+
+	linkToFile := filepath.Join(root, "link-file")
+	if err := os.Symlink(regularFile, linkToFile); err != nil {
+		t.Skipf("symlinks not supported on this system: %v", err)
+	}
+
+	linkToDir := filepath.Join(root, "link-dir")
+	if err := os.Symlink(regularDir, linkToDir); err != nil {
+		t.Skipf("symlinks not supported on this system: %v", err)
+	}
+
+	type call struct {
+		rel string
+		err error
+	}
+	var got []call
+
+	fn := func(path string, d fs.DirEntry, err error) error {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			t.Fatalf("filepath.Rel(%q, %q): %v", root, path, relErr)
+		}
+		got = append(got, call{rel: rel, err: err})
+		return nil
+	}
+
+	if err := FilteredWalk(root, Matcher{}, fn); err != nil {
+		t.Fatalf("FilteredWalk returned error: %v", err)
+	}
+
+	want := map[string]error{
+		".":         nil,                // root dir
+		"dir":       nil,                // regular dir
+		"file.txt":  nil,                // regular file
+		"link-file": nil,                // symlink to file
+		"link-dir":  ErrFilteredDirLink, // symlink to dir
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d fn calls, want %d: %#v", len(got), len(want), got)
+	}
+
+	for _, c := range got {
+		wantErr, ok := want[c.rel]
+		if !ok {
+			t.Fatalf("unexpected fn call for %q with err=%v", c.rel, c.err)
+		}
+
+		if wantErr == nil {
+			if c.err != nil {
+				t.Fatalf("fn(%q) err = %v, want nil", c.rel, c.err)
+			}
+			continue
+		}
+
+		if !errors.Is(c.err, wantErr) {
+			t.Fatalf("fn(%q) err = %v, want %v", c.rel, c.err, wantErr)
+		}
+	}
 }

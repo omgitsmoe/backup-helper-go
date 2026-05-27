@@ -4,17 +4,33 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 )
 
 var ErrFiltered = errors.New("filtered")
+var ErrFilteredDirLink = errors.New("filtered symlink to directory")
 
+// NOTE: Skips symlinks to directories!
 func FilteredWalk(root string, matcher Matcher, fn fs.WalkDirFunc) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fn(path, d, err)
+		}
+
+		if (d.Type() & fs.ModeSymlink) != 0 {
+			resolved, err := os.Stat(path)
+			if err != nil {
+				return fmt.Errorf("failed to stat symlink: %w", err)
+			}
+
+			if resolved.IsDir() {
+				// ignore symlinks to dirs
+				fn(path, d, ErrFilteredDirLink)
+				return nil
+			}
 		}
 
 		// NOTE: matcher matches on the relative path
