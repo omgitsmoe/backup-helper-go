@@ -824,3 +824,40 @@ func TestFilteredWalk_FiltersSymlinkedDirs(t *testing.T) {
 		}
 	}
 }
+
+func TestFilteredWalk_LinkNotExistError(t *testing.T) {
+	root := t.TempDir()
+
+	linkToFileNotFound := filepath.Join(root, "link-file-not-found")
+	if err := os.Symlink(
+		filepath.Join(root, "does", "not", "exist123"), linkToFileNotFound); err != nil {
+		t.Skipf("symlinks not supported on this system: %v", err)
+	}
+
+	type call struct {
+		rel string
+		err error
+	}
+	var got []call
+	want := []call{
+		{rel: ".", err: nil},
+	}
+
+	fn := func(path string, d fs.DirEntry, err error) error {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			t.Fatalf("filepath.Rel(%q, %q): %v", root, path, relErr)
+		}
+		got = append(got, call{rel: rel, err: err})
+		return nil
+	}
+
+	err := FilteredWalk(root, Matcher{}, fn)
+	assertErr(t, err)
+
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected os.ErrNotExist, got %s", err)
+	}
+
+	assertSliceEqual(t, got, want)
+}
