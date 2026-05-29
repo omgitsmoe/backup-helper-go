@@ -4,14 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 )
 
 var ErrFiltered = errors.New("filtered")
-var ErrFilteredDirLink = errors.New("filtered symlink to directory")
+var ErrFilteredSpecialFile = errors.New("filtered non-regular file")
 
 // NOTE: Skips symlinks to directories!
 func FilteredWalk(root string, matcher Matcher, fn fs.WalkDirFunc) error {
@@ -20,25 +19,33 @@ func FilteredWalk(root string, matcher Matcher, fn fs.WalkDirFunc) error {
 			return fn(path, d, err)
 		}
 
-		if (d.Type() & fs.ModeSymlink) != 0 {
-			resolved, err := os.Stat(path)
-			if err != nil {
-				return fmt.Errorf("failed to stat symlink: %w", err)
-			}
-
-			if resolved.IsDir() {
-				// ignore symlinks to dirs
-				fn(path, d, ErrFilteredDirLink)
-				return nil
-			}
-		}
-
 		// NOTE: matcher matches on the relative path
 		relative, err := filepath.Rel(root, path)
 		if err != nil {
 			return fmt.Errorf("failed to build a relative path: %w", err)
 		}
 
+		// NOTE better handling for symlinks and other speical files:
+		//      we will only visit regular files, but notify
+		//      about skipped files!
+		//
+		//      options:
+		//      - skip non-regular files
+		//        - scorch: skips non-regular files
+		//        - `find ./foo/ -type f -print0 | xargs -0 sha1sum`
+		//          also skips non-regular files
+		//      - follow the symlink for files, record error for faulty links
+		//        - is confusing, since we don't follow links to directories
+		//          and doing that would be a completely different rabbit hole
+		//        - also most tools don't follow symlinks when copying by
+		//          default, e.g. rsync BUT cp does follow BUT only
+		//          in file, not directory-mode :/
+		//      - hash the contents of a symlink
+		//        - would lead to confusing results for links that point
+		//          to the same path, but different contents depending
+		//          on the environment
+		//      - record the symlink itself as a special entry
+		//        - same drawback as hashing the link contents
 		if d.IsDir() {
 			// NOTE can't use match/allowed, since an intermediate dir
 			//      won't match, e.g. **/*.go so we only should check for blocked
@@ -46,11 +53,14 @@ func FilteredWalk(root string, matcher Matcher, fn fs.WalkDirFunc) error {
 				fn(path, d, ErrFiltered)
 				return fs.SkipDir
 			}
-		} else {
+		} else if d.Type().IsRegular() {
 			if !matcher.Match(relative) {
 				fn(path, d, ErrFiltered)
 				return nil
 			}
+		} else {
+			fn(path, d, ErrFilteredSpecialFile)
+			return nil
 		}
 
 		return fn(path, d, err)
@@ -71,6 +81,7 @@ func discoverHashFiles(root string, options *Options, progress ProgressFunc) ([]
 			}
 			return nil
 		}
+		// TODO ErrFilteredSpecialFile + progress
 
 		if err != nil {
 			return err
@@ -165,6 +176,7 @@ func discoverFiles(root string, options *Options, progress ProgressFunc) ([]stri
 			}
 			return nil
 		}
+		// TODO ErrFilteredSpecialFile + progress
 
 		if err != nil {
 			return err

@@ -795,11 +795,11 @@ func TestFilteredWalk_FiltersSymlinkedDirs(t *testing.T) {
 	}
 
 	want := map[string]error{
-		".":         nil,                // root dir
-		"dir":       nil,                // regular dir
-		"file.txt":  nil,                // regular file
-		"link-file": nil,                // symlink to file
-		"link-dir":  ErrFilteredDirLink, // symlink to dir
+		".":         nil,                    // root dir
+		"dir":       nil,                    // regular dir
+		"file.txt":  nil,                    // regular file
+		"link-file": ErrFilteredSpecialFile, // symlink to file
+		"link-dir":  ErrFilteredSpecialFile, // symlink to dir
 	}
 
 	if len(got) != len(want) {
@@ -825,7 +825,7 @@ func TestFilteredWalk_FiltersSymlinkedDirs(t *testing.T) {
 	}
 }
 
-func TestFilteredWalk_LinkNotExistError(t *testing.T) {
+func TestFilteredWalk_LinkNotExistIsNotAFailureCase(t *testing.T) {
 	root := t.TempDir()
 
 	linkToFileNotFound := filepath.Join(root, "link-file-not-found")
@@ -841,6 +841,7 @@ func TestFilteredWalk_LinkNotExistError(t *testing.T) {
 	var got []call
 	want := []call{
 		{rel: ".", err: nil},
+		{rel: "link-file-not-found", err: ErrFilteredSpecialFile},
 	}
 
 	fn := func(path string, d fs.DirEntry, err error) error {
@@ -853,11 +854,7 @@ func TestFilteredWalk_LinkNotExistError(t *testing.T) {
 	}
 
 	err := FilteredWalk(root, Matcher{}, fn)
-	assertErr(t, err)
-
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("expected os.ErrNotExist, got %s", err)
-	}
+	assertNoErr(t, err)
 
 	assertSliceEqual(t, got, want)
 }
