@@ -25,6 +25,9 @@ func NewSerializer(w io.Writer) *Serializer {
 	return &Serializer{w: w}
 }
 
+// TODO this should take a *HashCollection in NewSerializer, otherwise
+//
+//	it's too easy to use it with two different ones
 func (s *Serializer) Flush(c *HashCollection) error {
 	if len(c.pathToFile) == 0 {
 		return nil

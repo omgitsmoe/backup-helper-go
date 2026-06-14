@@ -201,7 +201,7 @@ func (c *HashCollection) Merge(other *HashCollection) error {
 				"pardir components: %w", ErrMergePardirBlocked)
 	}
 
-	keepOurs := c.mtime.After(other.mtime)
+	keepOurs := c.mtime.After(other.mtime) || c.mtime.Equal(other.mtime)
 	if c.mtime.IsZero() {
 		if other.mtime.IsZero() {
 			keepOurs = true

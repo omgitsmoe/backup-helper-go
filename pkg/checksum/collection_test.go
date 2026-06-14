@@ -500,6 +500,74 @@ func TestMerge(t *testing.T) {
 			errorKind: nil,
 		},
 		{
+			name: "same mtime: keep ours",
+			collection: &HashCollection{
+				root:  filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+				},
+			},
+			other: &HashCollection{
+				root:  filepath.Join("foo", "bar"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path: filepath.Join("foo", "conflict.txt"),
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			expected: &HashCollection{
+				root:  filepath.Join("foo"),
+				mtime: time.Unix(1337, 0),
+				pathToFile: map[string]*File{
+					filepath.Join("foo", "conflict.txt"): {
+						path:     filepath.Join("foo", "conflict.txt"),
+						mtime:    time.Unix(1337, 1_330_000),
+						size:     42069,
+						hashType: Hash{crypto.MD5},
+						hash:     []byte{0xde, 0xad, 0xbe, 0xef},
+					},
+					filepath.Join("ours", "bar.txt"): {
+						path:     filepath.Join("ours", "bar.txt"),
+						mtime:    time.Unix(12345, 0),
+						size:     5678,
+						hashType: Hash{crypto.SHA512},
+						hash:     []byte{0xab, 0xab, 0xab, 0xab},
+					},
+					filepath.Join("other", "xer.txt"): {
+						path:     filepath.Join("other", "xer.txt"),
+						mtime:    time.Unix(898989, 111),
+						size:     3344,
+						hashType: Hash{crypto.SHA3_256},
+						hash:     []byte{0xaa, 0xaa, 0xaa, 0xaa},
+					},
+				},
+			},
+			wantErr:   false,
+			errorKind: nil,
+		},
+		{
 			name: "self zero mtime: keep other",
 			collection: &HashCollection{
 				root: filepath.Join("foo"),
