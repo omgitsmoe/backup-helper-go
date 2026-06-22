@@ -168,6 +168,14 @@ func HashFile(path string, hash Hash, progress func(done, total uint64)) ([]byte
 	return hasher.Sum(nil), nil
 }
 
+func mtimeWithin(a, b time.Time) bool {
+    diff := a.Sub(b)
+    if diff < 0 {
+        diff = -diff
+    }
+    return diff <= time.Microsecond
+}
+
 func (f *File) Verify(progress func(done, total uint64)) (VerifyResult, error) {
 	if len(f.hash) == 0 {
 		return 0, ErrMissingHash
@@ -201,7 +209,7 @@ func (f *File) Verify(progress func(done, total uint64)) (VerifyResult, error) {
 
 	mtimeOnDisk := meta.ModTime()
 
-	if mtimeOnDisk.Equal(f.mtime) {
+	if mtimeWithin(mtimeOnDisk, f.mtime) {
 		return VerifyMismatchCorrupted, nil
 	}
 

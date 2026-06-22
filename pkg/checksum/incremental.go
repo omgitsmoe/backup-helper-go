@@ -53,7 +53,7 @@ func incremental(root string, mostCurrent *HashCollection, options *Options, pro
 		}
 
 		if options.IncrementalSkipUnchanged && hasPrevious &&
-			file.mtime.Equal(previous.mtime) {
+			mtimeWithin(file.mtime, previous.mtime) {
 			// we skip checking the hash on disk, since mtime is unchanged
 			// and the user set incremental_skip_unchanged
 			err := result.Insert(previous.Clone())
